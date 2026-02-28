@@ -2,13 +2,13 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# Хранилище корзин (в памяти)
+# хранение корзин пользователей
 carts = {}
 
 
-# ============================
+# =========================
 # ➕ ДОБАВИТЬ В КОРЗИНУ
-# ============================
+# =========================
 @app.route("/add", methods=["POST"])
 def add_to_cart():
     data = request.json
@@ -31,10 +31,10 @@ def add_to_cart():
     return jsonify({"status": "ok"})
 
 
-# ============================
+# =========================
 # 🛒 ПОЛУЧИТЬ КОРЗИНУ
-# ============================
-@app.route("/cart/<user_id>", methods=["GET"])
+# =========================
+@app.route("/cart/<user_id>")
 def get_cart(user_id):
     cart = carts.get(user_id, {})
 
@@ -58,9 +58,9 @@ def get_cart(user_id):
     })
 
 
-# ============================
+# =========================
 # ❌ ОЧИСТИТЬ КОРЗИНУ
-# ============================
+# =========================
 @app.route("/clear/<user_id>", methods=["POST"])
 def clear_cart(user_id):
     carts[user_id] = {}
