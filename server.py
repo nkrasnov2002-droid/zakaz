@@ -17,13 +17,25 @@ def add_to_cart():
     name = data["name"]
     price = int(data["price"])
 
+    # новые параметры (необязательные)
+    noodle = data.get("noodle")
+    sauce = data.get("sauce")
+
+    # если есть выбор лапши/соуса → добавляем к названию
+    if noodle or sauce:
+        options = ", ".join(filter(None, [noodle, sauce]))
+        name = f"{name} ({options})"
+
     if user_id not in carts:
         carts[user_id] = {}
 
     if name in carts[user_id]:
         carts[user_id][name]["qty"] += 1
     else:
-        carts[user_id][name] = {"price": price, "qty": 1}
+        carts[user_id][name] = {
+            "price": price,
+            "qty": 1
+        }
 
     return jsonify({"status": "ok"})
 
