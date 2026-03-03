@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import os
 import requests
 import math
+import json
 
 app = Flask(__name__)
 
@@ -190,39 +191,46 @@ def send_to_admin(text, user_id, receipt, lat, lon):
         ]]
     }
 
-    r1 = requests.post(
-        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-        json={
-            "chat_id": ADMIN_GROUP_ID,
-            "text": text,
-            "reply_markup": keyboard
-        }
-    )
-
-    print("sendMessage:", r1.text)
-
-    r2 = requests.post(
-        f"https://api.telegram.org/bot{BOT_TOKEN}/sendLocation",
-        json={
-            "chat_id": ADMIN_GROUP_ID,
-            "latitude": lat,
-            "longitude": lon
-        }
-    )
-
-    print("sendLocation:", r2.text)
-
-    if receipt:
-        r3 = requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
+    try:
+        # 📩 Отправляем текст заказа
+        r1 = requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
             json={
                 "chat_id": ADMIN_GROUP_ID,
-                "photo": receipt,
-                "caption": f"Чек оплаты\nID: {user_id}"
+                "text": text,
+                "reply_markup": json.dumps(keyboard)
             }
         )
 
-        print("sendPhoto:", r3.text)
+        print("sendMessage:", r1.text)
+
+        # 📍 Отправляем локацию
+        r2 = requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendLocation",
+            json={
+                "chat_id": ADMIN_GROUP_ID,
+                "latitude": lat,
+                "longitude": lon
+            }
+        )
+
+        print("sendLocation:", r2.text)
+
+        # 🧾 Отправляем чек если есть
+        if receipt:
+            r3 = requests.post(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
+                json={
+                    "chat_id": ADMIN_GROUP_ID,
+                    "photo": receipt,
+                    "caption": f"Чек оплаты\nID заказа: {user_id}"
+                }
+            )
+
+            print("sendPhoto:", r3.text)
+
+    except Exception as e:
+        print("ERROR in send_to_admin:", str(e))
 
 # ===============================
 # 🚀 ЗАПУСК
@@ -231,6 +239,7 @@ def send_to_admin(text, user_id, receipt, lat, lon):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
