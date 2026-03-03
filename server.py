@@ -99,8 +99,8 @@ def get_cart(user_id):
     items_text += f"\n🚚 Доставка: {delivery_price} ₽"
 
     return jsonify({
-        "items": items_text.strip(),
-        "total": total
+    "cart": items_text.strip(),
+    "order_total": total
     })
 
 # ===============================
@@ -186,3 +186,4 @@ def send_to_admin(text, user_id, receipt, lat, lon):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)    
+
