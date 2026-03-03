@@ -149,11 +149,11 @@ def checkout():
     user_id = str(data["user_id"])
     receipt = data.get("receipt_file")
 
-    cart = carts.get(user_id, {})
-    order_data = orders.get(user_id)
+   cart = carts.get(user_id, {})
+   order_data = orders.get(user_id)
 
-    if not order_data:
-    return jsonify({"status": "error"})
+   if not order_data:
+       return jsonify({"status": "error"})
 
     total = 0
     text = "🆕 Новый заказ\n\n"
@@ -232,6 +232,7 @@ def send_to_admin(text, user_id, receipt, lat, lon):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
