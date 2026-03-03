@@ -143,6 +143,7 @@ def get_cart(user_id):
 # 📦 ОФОРМЛЕНИЕ
 # ===============================
 
+print("CHECKOUT CALLED")
 @app.route("/checkout", methods=["POST"])
 def checkout():
     data = request.json
@@ -231,6 +232,7 @@ def send_to_admin(text, user_id, receipt, lat, lon):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
