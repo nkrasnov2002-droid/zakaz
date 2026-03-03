@@ -19,31 +19,7 @@ carts = {}
 orders = {}
 
 # ===============================
-# ➕ ДОБАВЛЕНИЕ В КОРЗИНУ
-# ===============================
-
-@app.route("/add", methods=["POST"])
-def add_to_cart():
-    data = request.json
-
-    user_id = str(data["user_id"])
-    name = data["name"]
-    price = int(data["price"])
-
-    cart = carts.setdefault(user_id, {})
-
-    if name in cart:
-        cart[name]["qty"] += 1
-    else:
-        cart[name] = {
-            "price": price,
-            "qty": 1
-        }
-
-    return jsonify({"status": "added"})
-    
-# ===============================
-# 📏 РАСЧЕТ РАССТОЯНИЯ
+# 📏 РАССТОЯНИЕ
 # ===============================
 
 def calculate_distance(lat1, lon1, lat2, lon2):
@@ -100,6 +76,39 @@ def delivery():
     })
 
 # ===============================
+# ➕ ДОБАВЛЕНИЕ В КОРЗИНУ
+# ===============================
+
+@app.route("/add", methods=["POST"])
+def add_to_cart():
+    data = request.json
+
+    user_id = str(data["user_id"])
+    base_name = data["name"]
+    price = int(data["price"])
+    noodle = data.get("noodle", "")
+    sauce = data.get("sauce", "")
+
+    # формируем название с выбором
+    name = base_name
+    if noodle:
+        name += f" | {noodle}"
+    if sauce:
+        name += f" | {sauce}"
+
+    cart = carts.setdefault(user_id, {})
+
+    if name in cart:
+        cart[name]["qty"] += 1
+    else:
+        cart[name] = {
+            "price": price,
+            "qty": 1
+        }
+
+    return jsonify({"status": "added"})
+
+# ===============================
 # 🛒 КОРЗИНА
 # ===============================
 
@@ -111,11 +120,9 @@ def get_cart(user_id):
     items_text = ""
 
     for name, item in cart.items():
-        qty = item["qty"]
-        price = item["price"]
-        subtotal = qty * price
+        subtotal = item["price"] * item["qty"]
         total += subtotal
-        items_text += f"{name} x {qty} — {subtotal} ₽\n"
+        items_text += f"{name} x {item['qty']} — {subtotal} ₽\n"
 
     delivery_price = orders.get(user_id, {}).get("delivery_price", 0)
     total += delivery_price
@@ -123,8 +130,8 @@ def get_cart(user_id):
     items_text += f"\n🚚 Доставка: {delivery_price} ₽"
 
     return jsonify({
-    "cart": items_text.strip(),
-    "order_total": total
+        "cart": items_text.strip(),
+        "order_total": total
     })
 
 # ===============================
@@ -157,8 +164,12 @@ def checkout():
     text += f"\n🚚 Доставка: {delivery_price} ₽"
     text += f"\n💰 ИТОГО: {total} ₽"
     text += f"\n📞 Телефон: {order_data['phone']}"
+    text += f"\n📍 Зона: {order_data['zone']}"
 
     send_to_admin(text, user_id, receipt, order_data["lat"], order_data["lon"])
+
+    # очищаем корзину после оформления
+    carts[user_id] = {}
 
     return jsonify({"status": "sent"})
 
@@ -209,6 +220,4 @@ def send_to_admin(text, user_id, receipt, lat, lon):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)    
-
-
+    app.run(host="0.0.0.0", port=port)
