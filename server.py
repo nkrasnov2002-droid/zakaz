@@ -8,8 +8,8 @@ app = Flask(__name__)
 # 🔐 НАСТРОЙКИ
 # ===============================
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN")  # токен бота
-ADMIN_GROUP_ID = os.environ.get("ADMIN_GROUP_ID")  # id группы админов
+BOT_TOKEN = os.environ.get("8664317789:AAGcGRLX4BrEtzjjEOs5DitNyhRjU-ijrwA")  # токен бота
+ADMIN_GROUP_ID = os.environ.get("-1003806853927")  # id группы админов
 
 carts = {}
 orders = {}
@@ -205,3 +205,4 @@ def send_to_user(user_id, text):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
