@@ -43,8 +43,8 @@ def delivery():
 
     user_id = str(data["user_id"])
 
-    lat = float(coords["latitude"])
-    lon = float(coords["longitude"])
+    lat = float(data["lat"])
+    lon = float(data["long"])
 
     phone = data["phone"]
 
@@ -241,6 +241,7 @@ def send_to_admin(text, user_id, receipt, lat, lon):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
