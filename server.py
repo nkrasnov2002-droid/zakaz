@@ -191,7 +191,7 @@ def send_to_admin(text, user_id, receipt, lat, lon):
         ]]
     }
 
-    requests.post(
+    r1 = requests.post(
         f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
         json={
             "chat_id": ADMIN_GROUP_ID,
@@ -200,7 +200,9 @@ def send_to_admin(text, user_id, receipt, lat, lon):
         }
     )
 
-    requests.post(
+    print("sendMessage:", r1.text)
+
+    r2 = requests.post(
         f"https://api.telegram.org/bot{BOT_TOKEN}/sendLocation",
         json={
             "chat_id": ADMIN_GROUP_ID,
@@ -209,8 +211,10 @@ def send_to_admin(text, user_id, receipt, lat, lon):
         }
     )
 
+    print("sendLocation:", r2.text)
+
     if receipt:
-        requests.post(
+        r3 = requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
             json={
                 "chat_id": ADMIN_GROUP_ID,
@@ -219,6 +223,8 @@ def send_to_admin(text, user_id, receipt, lat, lon):
             }
         )
 
+        print("sendPhoto:", r3.text)
+
 # ===============================
 # 🚀 ЗАПУСК
 # ===============================
@@ -226,4 +232,5 @@ def send_to_admin(text, user_id, receipt, lat, lon):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
