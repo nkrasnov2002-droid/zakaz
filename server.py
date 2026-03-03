@@ -81,15 +81,20 @@ def delivery():
 
 @app.route("/add", methods=["POST"])
 def add_to_cart():
-    data = request.json
+    data = request.json or {}
 
-    user_id = str(data["user_id"])
-    base_name = data["name"]
-    price = int(data["price"])
+    user_id = str(data.get("user_id"))
+    base_name = data.get("name")
+    price = data.get("price")
+
+    if not user_id or not base_name or not price:
+        return jsonify({"status": "error", "message": "invalid data"}), 400
+
+    price = int(price)
+
     noodle = data.get("noodle", "")
     sauce = data.get("sauce", "")
 
-    # формируем название с выбором
     name = base_name
     if noodle:
         name += f" | {noodle}"
@@ -221,3 +226,4 @@ def send_to_admin(text, user_id, receipt, lat, lon):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
