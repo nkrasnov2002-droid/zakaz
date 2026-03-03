@@ -42,9 +42,13 @@ def delivery():
     data = request.json
 
     user_id = str(data["user_id"])
+    
+    import json
 
-    lat = float(data["lat"])
-    lon = float(data["lon"])
+    coords = json.loads(data["lat"])
+    
+    lat = float(coords["latitude"])
+    lon = float(coords["longitude"])
 
     phone = data["phone"]
 
@@ -241,6 +245,7 @@ def send_to_admin(text, user_id, receipt, lat, lon):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
