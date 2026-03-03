@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import os
 import requests
+import math
 
 app = Flask(__name__)
 
@@ -8,47 +9,74 @@ app = Flask(__name__)
 # 🔐 НАСТРОЙКИ
 # ===============================
 
-BOT_TOKEN = os.environ.get("8664317789:AAGcGRLX4BrEtzjjEOs5DitNyhRjU-ijrwA")  # токен бота
-ADMIN_GROUP_ID = os.environ.get("-1003806853927")  # id группы админов
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+ADMIN_GROUP_ID = os.environ.get("ADMIN_GROUP_ID")
+
+SHOP_LAT = 56.844628
+SHOP_LON = 53.203414
 
 carts = {}
 orders = {}
 
 # ===============================
-# ➕ ДОБАВИТЬ В КОРЗИНУ
+# 📏 РАСЧЕТ РАССТОЯНИЯ
 # ===============================
 
-@app.route("/add", methods=["POST"])
-def add_to_cart():
+def calculate_distance(lat1, lon1, lat2, lon2):
+    R = 6371
+    d_lat = math.radians(lat2 - lat1)
+    d_lon = math.radians(lon2 - lon1)
+
+    a = math.sin(d_lat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(d_lon/2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+
+    return R * c
+
+# ===============================
+# 🚚 ДОСТАВКА
+# ===============================
+
+@app.route("/delivery", methods=["POST"])
+def delivery():
     data = request.json
 
     user_id = str(data["user_id"])
-    name = data["name"]
-    price = int(data["price"])
+    lat = float(data["lat"])
+    lon = float(data["lon"])
+    phone = data["phone"]
 
-    noodle = data.get("noodle")
-    sauce = data.get("sauce")
+    distance = calculate_distance(SHOP_LAT, SHOP_LON, lat, lon)
 
-    if noodle or sauce:
-        options = ", ".join(filter(None, [noodle, sauce]))
-        name = f"{name} ({options})"
-
-    if user_id not in carts:
-        carts[user_id] = {}
-
-    if name in carts[user_id]:
-        carts[user_id][name]["qty"] += 1
+    if distance <= 5:
+        zone = "🟢 Зеленая зона"
+        price = 0
+        time = "55 минут"
+    elif distance <= 10:
+        zone = "🔵 Голубая зона"
+        price = 0
+        time = "1.5 часа"
     else:
-        carts[user_id][name] = {
-            "price": price,
-            "qty": 1
-        }
+        zone = "🟣 Фиолетовая зона"
+        price = 1000
+        time = "2.5 часа"
 
-    return jsonify({"status": "ok"})
+    orders[user_id] = {
+        "delivery_price": price,
+        "delivery_time": time,
+        "zone": zone,
+        "lat": lat,
+        "lon": lon,
+        "phone": phone
+    }
 
+    return jsonify({
+        "zone": zone,
+        "delivery_price": price,
+        "delivery_time": time
+    })
 
 # ===============================
-# 🛒 ПОЛУЧИТЬ КОРЗИНУ
+# 🛒 КОРЗИНА
 # ===============================
 
 @app.route("/cart/<user_id>", methods=["GET"])
@@ -62,82 +90,65 @@ def get_cart(user_id):
         qty = item["qty"]
         price = item["price"]
         subtotal = qty * price
-
         total += subtotal
         items_text += f"{name} x {qty} — {subtotal} ₽\n"
 
-    if items_text == "":
-        items_text = "пусто"
+    delivery_price = orders.get(user_id, {}).get("delivery_price", 0)
+    total += delivery_price
+
+    items_text += f"\n🚚 Доставка: {delivery_price} ₽"
 
     return jsonify({
         "items": items_text.strip(),
         "total": total
     })
 
-
 # ===============================
-# ❌ ОЧИСТИТЬ КОРЗИНУ
-# ===============================
-
-@app.route("/clear/<user_id>", methods=["POST"])
-def clear_cart(user_id):
-    carts[user_id] = {}
-    return jsonify({"status": "cleared"})
-
-
-# ===============================
-# 📦 ОФОРМИТЬ ЗАКАЗ
+# 📦 ОФОРМЛЕНИЕ
 # ===============================
 
 @app.route("/checkout", methods=["POST"])
 def checkout():
     data = request.json
-
     user_id = str(data["user_id"])
-    payment = data.get("payment")
     receipt = data.get("receipt_file")
 
     cart = carts.get(user_id, {})
+    order_data = orders.get(user_id)
 
-    if not cart:
-        return jsonify({"status": "empty"})
+    if not cart or not order_data:
+        return jsonify({"status": "error"})
 
     total = 0
-    order_text = "🆕 Новый заказ\n\n"
+    text = "🆕 Новый заказ\n\n"
 
     for name, item in cart.items():
-        qty = item["qty"]
-        price = item["price"]
-        subtotal = qty * price
+        subtotal = item["price"] * item["qty"]
         total += subtotal
-        order_text += f"{name} x {qty} — {subtotal} ₽\n"
+        text += f"{name} x {item['qty']} — {subtotal} ₽\n"
 
-    order_text += f"\n💰 ИТОГО: {total} ₽"
-    order_text += f"\n💳 Оплата: {payment}"
-    order_text += f"\n👤 ID клиента: {user_id}"
+    delivery_price = order_data["delivery_price"]
+    total += delivery_price
 
-    orders[user_id] = {
-        "status": "waiting"
-    }
+    text += f"\n🚚 Доставка: {delivery_price} ₽"
+    text += f"\n💰 ИТОГО: {total} ₽"
+    text += f"\n📞 Телефон: {order_data['phone']}"
 
-    send_to_admin(order_text, user_id, receipt)
+    send_to_admin(text, user_id, receipt, order_data["lat"], order_data["lon"])
 
     return jsonify({"status": "sent"})
 
-
 # ===============================
-# 📤 ОТПРАВКА В ГРУППУ
+# 📤 ОТПРАВКА АДМИНУ
 # ===============================
 
-def send_to_admin(text, user_id, receipt):
+def send_to_admin(text, user_id, receipt, lat, lon):
 
     keyboard = {
-        "inline_keyboard": [
-            [
-                {"text": "✅ Одобрить", "callback_data": f"approve_{user_id}"},
-                {"text": "❌ Отклонить", "callback_data": f"reject_{user_id}"}
-            ]
-        ]
+        "inline_keyboard": [[
+            {"text": "✅ Одобрить", "callback_data": f"approve_{user_id}"},
+            {"text": "❌ Отклонить", "callback_data": f"reject_{user_id}"}
+        ]]
     }
 
     requests.post(
@@ -146,6 +157,15 @@ def send_to_admin(text, user_id, receipt):
             "chat_id": ADMIN_GROUP_ID,
             "text": text,
             "reply_markup": keyboard
+        }
+    )
+
+    requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendLocation",
+        json={
+            "chat_id": ADMIN_GROUP_ID,
+            "latitude": lat,
+            "longitude": lon
         }
     )
 
@@ -159,50 +179,10 @@ def send_to_admin(text, user_id, receipt):
             }
         )
 
-
-# ===============================
-# 🤖 WEBHOOK TELEGRAM
-# ===============================
-
-@app.route("/telegram", methods=["POST"])
-def telegram_webhook():
-    data = request.json
-
-    if "callback_query" in data:
-        query = data["callback_query"]
-        action, user_id = query["data"].split("_")
-
-        if action == "approve":
-            send_to_user(user_id, "✅ Ваш заказ одобрен и передан в работу.")
-            carts[user_id] = {}
-            orders[user_id]["status"] = "approved"
-
-        elif action == "reject":
-            send_to_user(user_id, "❌ Заказ не оформлен. Проверьте оплату.")
-            orders[user_id]["status"] = "rejected"
-
-    return "ok"
-
-
-# ===============================
-# 📩 СООБЩЕНИЕ КЛИЕНТУ
-# ===============================
-
-def send_to_user(user_id, text):
-    requests.post(
-        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-        json={
-            "chat_id": user_id,
-            "text": text
-        }
-    )
-
-
 # ===============================
 # 🚀 ЗАПУСК
 # ===============================
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
-
+    app.run(host="0.0.0.0", port=port)    
