@@ -19,6 +19,30 @@ carts = {}
 orders = {}
 
 # ===============================
+# ➕ ДОБАВЛЕНИЕ В КОРЗИНУ
+# ===============================
+
+@app.route("/add", methods=["POST"])
+def add_to_cart():
+    data = request.json
+
+    user_id = str(data["user_id"])
+    name = data["name"]
+    price = int(data["price"])
+
+    cart = carts.setdefault(user_id, {})
+
+    if name in cart:
+        cart[name]["qty"] += 1
+    else:
+        cart[name] = {
+            "price": price,
+            "qty": 1
+        }
+
+    return jsonify({"status": "added"})
+    
+# ===============================
 # 📏 РАСЧЕТ РАССТОЯНИЯ
 # ===============================
 
@@ -186,4 +210,5 @@ def send_to_admin(text, user_id, receipt, lat, lon):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)    
+
 
