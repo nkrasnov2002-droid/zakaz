@@ -75,6 +75,7 @@ def delivery():
         "lat": lat,
         "lon": lon,
         "phone": phone
+        "created_at": time.time()
     }
 
     return jsonify({
@@ -203,16 +204,6 @@ def checkout():
     text += f"\n📞 Телефон: {order_data['phone']}"
     text += f"\n📍 Зона: {order_data['zone']}"
 
-    orders[user_id] = {
-    "delivery_price": price,
-    "delivery_time": time,
-    "zone": zone,
-    "lat": lat,
-    "lon": lon,
-    "phone": phone,
-    "created_at": time.time()
-}
-
     carts.pop(user_id,None)
 
     return jsonify({"status":"sent"})
@@ -339,6 +330,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
