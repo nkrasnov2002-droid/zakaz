@@ -325,7 +325,7 @@ def check_callbacks():
             params={"offset": last_update + 1}
         ).json()
 
-        for update in r["result"]:
+        for update in r.get("result",[]):
 
             last_update = update["update_id"]
 
@@ -370,6 +370,7 @@ threading.Thread(target=check_callbacks).start()
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
