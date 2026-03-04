@@ -4,7 +4,7 @@ import requests
 import math
 import json
 
-app = Flask(name)
+app = Flask(__name__)
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_GROUP_ID = os.environ.get("ADMIN_GROUP_ID")
@@ -200,6 +200,7 @@ def checkout():
 # ===============================
 # ОТПРАВКА АДМИНУ
 # ===============================
+
 def send_to_admin(text,user_id,receipt,lat,lon):
 
     keyboard = {
@@ -355,3 +356,49 @@ def webhook():
             }
         )
 
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json={
+                "chat_id":user_id,
+                "text":"🚗 Курьер выехал к вам"
+            }
+        )
+
+
+    elif callback.startswith("done_"):
+
+        keyboard = {
+            "inline_keyboard":[[
+                {"text":"✅ Заказ завершен","callback_data":"done"}
+            ]]
+        }
+
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageReplyMarkup",
+            json={
+                "chat_id":chat_id,
+                "message_id":message_id,
+                "reply_markup":keyboard
+            }
+        )
+
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json={
+                "chat_id":user_id,
+                "text":"📦 Заказ доставлен. Спасибо!"
+            }
+        )
+
+    return {"ok":True}
+
+
+# ===============================
+# ЗАПУСК
+# ===============================
+
+if __name__ == "__main__":
+
+    port = int(os.environ.get("PORT",5000))
+
+    app.run(host="0.0.0.0",port=port)
