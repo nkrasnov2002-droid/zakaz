@@ -218,7 +218,7 @@ def checkout():
 # ОТПРАВКА АДМИНУ
 # ===============================
 
-def send_to_admin(text,user_id,receipt,lat,lon):
+def send_to_admin(text,user_id,receipt_file,lat,lon):
 
     keyboard = {
         "inline_keyboard":[[
@@ -308,6 +308,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
