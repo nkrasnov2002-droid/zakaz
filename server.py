@@ -239,12 +239,68 @@ def send_to_admin(text, user_id, receipt, lat, lon):
         print("ERROR in send_to_admin:", str(e))
 
 # ===============================
+# 🔘 ОБРАБОТКА КНОПОК АДМИНА
+# ===============================
+
+@app.route(f"/{BOT_TOKEN}", methods=["POST"])
+def telegram_webhook():
+
+    update = request.json
+
+    if "callback_query" in update:
+
+        callback = update["callback_query"]
+        data = callback["data"]
+        callback_id = callback["id"]
+
+        # отвечаем Telegram чтобы кнопка не зависала
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
+            json={"callback_query_id": callback_id}
+        )
+
+        # ===============================
+        # ✅ ОДОБРИТЬ ЗАКАЗ
+        # ===============================
+
+        if data.startswith("approve_"):
+
+            user_id = data.split("_")[1]
+
+            requests.post(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                json={
+                    "chat_id": user_id,
+                    "text": "✅ Ваш заказ подтвержден и готовится!"
+                }
+            )
+
+        # ===============================
+        # ❌ ОТКЛОНИТЬ ЗАКАЗ
+        # ===============================
+
+        if data.startswith("reject_"):
+
+            user_id = data.split("_")[1]
+
+            requests.post(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                json={
+                    "chat_id": user_id,
+                    "text": "❌ К сожалению заказ отклонён."
+                }
+            )
+
+    return "ok"
+    
+# ===============================
 # 🚀 ЗАПУСК
 # ===============================
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
