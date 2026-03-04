@@ -147,7 +147,22 @@ def get_cart(user_id):
         "order_total": total
     })
 
+# ===============================
+# ОЧИСТКА КОРЗИНЫ
+# ===============================
 
+@app.route("/clear/<user_id>", methods=["POST","GET"])
+def clear_cart(user_id):
+
+    user_id = str(user_id)
+
+    carts.pop(user_id, None)
+    orders.pop(user_id, None)
+
+    return jsonify({
+        "status": "cleared"
+    })
+    
 # ===============================
 # ОФОРМЛЕНИЕ ЗАКАЗА
 # ===============================
@@ -293,3 +308,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
