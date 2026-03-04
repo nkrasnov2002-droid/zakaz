@@ -152,16 +152,17 @@ def get_cart(user_id):
 
 @app.route("/checkout", methods=["POST"])
 def checkout():
+
     data = request.json or {}
 
     user_id = str(data.get("user_id"))
-    receipt = data.get("receipt_file")
+    receipt = data.get("receipt") or data.get("receipt_file")
 
     cart = carts.get(user_id, {})
     order_data = orders.get(user_id)
 
     if not order_data:
-        return jsonify({"status": "error", "message": "no order data"}), 400
+        return jsonify({"status": "error", "message": "no delivery data"})
 
     total = 0
     text = "🆕 Новый заказ\n\n"
@@ -171,25 +172,24 @@ def checkout():
         total += subtotal
         text += f"{name} x {item['qty']} — {subtotal} ₽\n"
 
-    delivery_price = order_data.get("delivery_price", 0)
+    delivery_price = order_data["delivery_price"]
     total += delivery_price
 
     text += f"\n🚚 Доставка: {delivery_price} ₽"
     text += f"\n💰 ИТОГО: {total} ₽"
-    text += f"\n📞 Телефон: {order_data.get('phone')}"
-    text += f"\n📍 Зона: {order_data.get('zone')}"
+    text += f"\n📞 Телефон: {order_data['phone']}"
+    text += f"\n📍 Зона: {order_data['zone']}"
 
     try:
         send_to_admin(
             text,
             user_id,
             receipt,
-            order_data.get("lat"),
-            order_data.get("lon")
+            float(order_data["lat"]),
+            float(order_data["lon"])
         )
     except Exception as e:
-        print("CHECKOUT ERROR:", str(e))
-        return jsonify({"status": "error"}), 500
+        print("CHECKOUT ERROR:", e)
 
     carts.pop(user_id, None)
 
@@ -292,6 +292,7 @@ def telegram_webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
