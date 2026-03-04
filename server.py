@@ -196,7 +196,49 @@ def checkout():
     carts.pop(user_id, None)
 
     return jsonify({"status": "sent"})
-    
+
+def send_to_admin(text, user_id, receipt, lat, lon):
+
+    keyboard = {
+        "inline_keyboard": [[
+            {"text": "✅ Одобрить", "callback_data": f"approve_{user_id}"},
+            {"text": "❌ Отклонить", "callback_data": f"reject_{user_id}"}
+        ]]
+    }
+
+    # сообщение
+    r1 = requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+        json={
+            "chat_id": ADMIN_GROUP_ID,
+            "text": text,
+            "reply_markup": keyboard
+        }
+    )
+
+    print("SEND MESSAGE:", r1.text)
+
+    # локация
+    requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendLocation",
+        json={
+            "chat_id": ADMIN_GROUP_ID,
+            "latitude": lat,
+            "longitude": lon
+        }
+    )
+
+    # чек
+    if receipt:
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
+            json={
+                "chat_id": ADMIN_GROUP_ID,
+                "photo": receipt,
+                "caption": f"Чек оплаты\nID заказа: {user_id}"
+            }
+        )
+        
 # ===============================
 # 🔘 ОБРАБОТКА КНОПОК АДМИНА
 # ===============================
@@ -294,6 +336,7 @@ def telegram_webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
