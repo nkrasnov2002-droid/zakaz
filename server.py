@@ -310,14 +310,67 @@ def telegram_webhook():
             )
 
     return {"ok": True}
-    
+
+import time
+
+last_update = 0
+
+def check_callbacks():
+    global last_update
+
+    while True:
+
+        r = requests.get(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates",
+            params={"offset": last_update + 1}
+        ).json()
+
+        for update in r["result"]:
+
+            last_update = update["update_id"]
+
+            if "callback_query" in update:
+
+                callback = update["callback_query"]
+                data = callback["data"]
+
+                if data.startswith("approve_"):
+
+                    user_id = data.split("_")[1]
+
+                    requests.post(
+                        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                        json={
+                            "chat_id": user_id,
+                            "text": "✅ Ваш заказ подтвержден!"
+                        }
+                    )
+
+                if data.startswith("reject_"):
+
+                    user_id = data.split("_")[1]
+
+                    requests.post(
+                        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                        json={
+                            "chat_id": user_id,
+                            "text": "❌ Заказ отклонен"
+                        }
+                    )
+
+        time.sleep(2)
+        
 # ===============================
 # 🚀 ЗАПУСК
 # ===============================
+import threading
+
+threading.Thread(target=check_callbacks).start()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
