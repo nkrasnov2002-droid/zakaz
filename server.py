@@ -257,7 +257,7 @@ def send_to_admin(text,user_id,receipt,lat,lon):
         f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
         json={
             "chat_id": ADMIN_GROUP_ID,
-            "photo": receipt,
+            "photo": receipt_file,
             "caption": f"Чек оплаты\nID заказа: {user_id}"
         }
       )
@@ -308,6 +308,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
