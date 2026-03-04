@@ -181,6 +181,8 @@ def checkout():
     text += f"\n📍 Зона: {order_data['zone']}"
 
     try:
+        print("SENDING ORDER")
+        
         send_to_admin(
             text,
             user_id,
@@ -292,6 +294,7 @@ def telegram_webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
