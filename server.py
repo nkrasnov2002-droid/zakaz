@@ -3,6 +3,8 @@ import os
 import requests
 import math
 import json
+import time
+import threading
 
 app = Flask(__name__)
 
@@ -201,13 +203,15 @@ def checkout():
     text += f"\n📞 Телефон: {order_data['phone']}"
     text += f"\n📍 Зона: {order_data['zone']}"
 
-    send_to_admin(
-        text,
-        user_id,
-        receipt,
-        order_data["lat"],
-        order_data["lon"]
-    )
+    orders[user_id] = {
+    "delivery_price": price,
+    "delivery_time": time,
+    "zone": zone,
+    "lat": lat,
+    "lon": lon,
+    "phone": phone,
+    "created_at": time.time()
+}
 
     carts.pop(user_id,None)
 
@@ -300,7 +304,32 @@ def reject(user_id):
 
     return "OK"
 
+def cleanup_orders():
 
+    now = time.time()
+
+    for user_id in list(orders.keys()):
+
+        created = orders[user_id].get("created_at", now)
+
+        if now - created > 7200:  # 2 часа
+
+            carts.pop(user_id, None)
+            orders.pop(user_id, None)
+
+            requests.post(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                json={
+                    "chat_id": user_id,
+                    "text": "⏳ Сессия заказа истекла.\n\nНажмите /start чтобы начать новый заказ."
+                }
+            )
+            def cleaner_loop():
+    while True:
+        cleanup_orders()
+        time.sleep(300)  # проверка каждые 5 минут
+
+threading.Thread(target=cleaner_loop, daemon=True).start()
 # ===============================
 # ЗАПУСК
 # ===============================
@@ -310,6 +339,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
