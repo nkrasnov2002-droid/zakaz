@@ -22,9 +22,7 @@ orders = {}
 # ===============================
 
 def calculate_distance(lat1, lon1, lat2, lon2):
-
     R = 6371
-
     d_lat = math.radians(lat2 - lat1)
     d_lon = math.radians(lon2 - lon1)
 
@@ -43,10 +41,9 @@ def delivery():
 
     data = request.json
 
-    user_id = str(data["user_id"]).strip()
+    user_id = str(data["user_id"])
 
     coords = json.loads(data["lat"])
-
     lat = float(coords["latitude"])
     lon = float(coords["longitude"])
 
@@ -94,8 +91,7 @@ def add_to_cart():
 
     data = request.json
 
-    user_id = str(data["user_id"]).strip()
-
+    user_id = str(data["user_id"])
     name = data["name"]
     price = int(data["price"])
 
@@ -128,8 +124,6 @@ def add_to_cart():
 @app.route("/cart/<user_id>", methods=["GET"])
 def get_cart(user_id):
 
-    user_id = str(user_id).strip()
-
     cart = carts.get(user_id,{})
 
     total = 0
@@ -138,7 +132,6 @@ def get_cart(user_id):
     for name,item in cart.items():
 
         subtotal = item["price"] * item["qty"]
-
         total += subtotal
 
         text += f"{name} x {item['qty']} — {subtotal} ₽\n"
@@ -164,8 +157,7 @@ def checkout():
 
     data = request.json
 
-    user_id = str(data["user_id"]).strip()
-
+    user_id = str(data["user_id"])
     receipt = data.get("receipt")
 
     cart = carts.get(user_id,{})
@@ -181,7 +173,6 @@ def checkout():
     for name,item in cart.items():
 
         subtotal = item["price"] * item["qty"]
-
         total += subtotal
 
         text += f"{name} x {item['qty']} — {subtotal} ₽\n"
@@ -202,6 +193,8 @@ def checkout():
         order_data["lat"],
         order_data["lon"]
     )
+
+    carts.pop(user_id,None)
 
     return jsonify({"status":"sent"})
 
@@ -226,51 +219,37 @@ def send_to_admin(text,user_id,receipt,lat,lon):
     }
 
     requests.post(
-    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-    json={
-        "chat_id": int(ADMIN_GROUP_ID),
-        "text": text,
-        "reply_markup": keyboard
-    }
-)
-
-requests.post(
-    f"https://api.telegram.org/bot{BOT_TOKEN}/sendLocation",
-    json={
-        "chat_id": int(ADMIN_GROUP_ID),
-        "latitude": lat,
-        "longitude": lon
-    }
-)
-
-if receipt:
-
-    requests.post(
-        f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
-        data={
-            "chat_id": int(ADMIN_GROUP_ID),
-            "photo": receipt,
-            "caption": f"Чек оплаты\nID заказа: {user_id}"
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+        json={
+            "chat_id":ADMIN_GROUP_ID,
+            "text":text,
+            "reply_markup":keyboard
         }
     )
 
+    requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendLocation",
+        json={
+            "chat_id":ADMIN_GROUP_ID,
+            "latitude":lat,
+            "longitude":lon
+        }
+    )
+
+    if receipt:
+
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
+            json={
+                "chat_id":ADMIN_GROUP_ID,
+                "photo":receipt,
+                "caption":f"Чек оплаты\nID заказа: {user_id}"
+            }
+        )
+
+
 # ===============================
-# ОЧИСТКА КОРЗИНЫ
-# ===============================
-
-@app.route("/clear/<user_id>", methods=["POST","GET"])
-def clear_cart(user_id):
-
-    user_id = str(user_id).strip()
-
-    carts.pop(user_id, None)
-    orders.pop(user_id, None)
-
-    return jsonify({"status":"cleared"})
-
-
-# ===============================
-# ОДОБРЕНИЕ
+# ОДОБРЕНИЕ ЗАКАЗА
 # ===============================
 
 @app.route("/approve/<user_id>")
@@ -288,7 +267,7 @@ def approve(user_id):
 
 
 # ===============================
-# ОТКЛОНЕНИЕ
+# ОТКЛОНЕНИЕ ЗАКАЗА
 # ===============================
 
 @app.route("/reject/<user_id>")
@@ -314,4 +293,3 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
-
