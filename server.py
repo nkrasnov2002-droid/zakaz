@@ -74,7 +74,7 @@ def delivery():
         "zone": zone,
         "lat": lat,
         "lon": lon,
-        "phone": phone
+        "phone": phone,
         "created_at": time.time()
     }
 
@@ -330,6 +330,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
