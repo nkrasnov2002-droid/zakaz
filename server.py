@@ -9,6 +9,8 @@ app = Flask(__name__)
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_GROUP_ID = os.environ.get("ADMIN_GROUP_ID")
 
+SERVER_URL = "https://zakaz-production-5164.up.railway.app"
+
 SHOP_LAT = 56.844628
 SHOP_LON = 53.203414
 
@@ -205,8 +207,14 @@ def send_to_admin(text,user_id,receipt,lat,lon):
 
     keyboard = {
         "inline_keyboard":[[
-            {"text":"✅ Одобрить","callback_data":f"approve_{user_id}"},
-            {"text":"❌ Отклонить","callback_data":f"reject_{user_id}"}
+            {
+                "text":"✅ Одобрить",
+                "url":f"{SERVER_URL}/approve/{user_id}"
+            },
+            {
+                "text":"❌ Отклонить",
+                "url":f"{SERVER_URL}/reject/{user_id}"
+            }
         ]]
     }
 
@@ -241,156 +249,39 @@ def send_to_admin(text,user_id,receipt,lat,lon):
 
 
 # ===============================
-# КНОПКИ АДМИНА
+# ОДОБРЕНИЕ ЗАКАЗА
 # ===============================
 
-@app.route(f"/{BOT_TOKEN}", methods=["POST"])
-def webhook():
+@app.route("/approve/<user_id>")
+def approve(user_id):
 
-    data = request.json
-
-    if "callback_query" not in data:
-        return {"ok":True}
-
-    query = data["callback_query"]
-
-    callback = query["data"]
-
-    chat_id = query["message"]["chat"]["id"]
-    message_id = query["message"]["message_id"]
-
-    user_id = callback.split("_")[1]
-
-    if callback.startswith("approve_"):
-
-        keyboard = {
-            "inline_keyboard":[[
-                {"text":"🍳 Готовится","callback_data":f"cook_{user_id}"}
-            ]]
+    requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+        json={
+            "chat_id":user_id,
+            "text":"✅ Ваш заказ подтвержден и готовится!"
         }
+    )
 
-        requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageReplyMarkup",
-            json={
-                "chat_id":chat_id,
-                "message_id":message_id,
-                "reply_markup":keyboard
-            }
-        )
-
-        requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-            json={
-                "chat_id":user_id,
-                "text":"✅ Заказ подтвержден и готовится"
-            }
-        )
+    return "OK"
 
 
-    elif callback.startswith("reject_"):
+# ===============================
+# ОТКЛОНЕНИЕ ЗАКАЗА
+# ===============================
 
-        keyboard = {
-            "inline_keyboard":[[
-                {"text":"❌ Заказ отклонен","callback_data":"done"}
-            ]]
+@app.route("/reject/<user_id>")
+def reject(user_id):
+
+    requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+        json={
+            "chat_id":user_id,
+            "text":"❌ К сожалению заказ отклонен."
         }
+    )
 
-        requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageReplyMarkup",
-            json={
-                "chat_id":chat_id,
-                "message_id":message_id,
-                "reply_markup":keyboard
-            }
-        )
-
-        requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-            json={
-                "chat_id":user_id,
-                "text":"❌ Заказ отклонен"
-            }
-        )
-
-
-    elif callback.startswith("cook_"):
-
-        keyboard = {
-            "inline_keyboard":[[
-                {"text":"🚗 Курьер выехал","callback_data":f"delivery_{user_id}"}
-            ]]
-        }
-
-        requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageReplyMarkup",
-            json={
-                "chat_id":chat_id,
-                "message_id":message_id,
-                "reply_markup":keyboard
-            }
-        )
-
-        requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-            json={
-                "chat_id":user_id,
-                "text":"🍳 Ваш заказ готовится"
-            }
-        )
-
-
-    elif callback.startswith("delivery_"):
-
-        keyboard = {
-            "inline_keyboard":[[
-                {"text":"📦 Доставлено","callback_data":f"done_{user_id}"}
-            ]]
-        }
-
-        requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageReplyMarkup",
-            json={
-                "chat_id":chat_id,
-                "message_id":message_id,
-                "reply_markup":keyboard
-            }
-        )
-
-        requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-            json={
-                "chat_id":user_id,
-                "text":"🚗 Курьер выехал к вам"
-            }
-        )
-
-
-    elif callback.startswith("done_"):
-
-        keyboard = {
-            "inline_keyboard":[[
-                {"text":"✅ Заказ завершен","callback_data":"done"}
-            ]]
-        }
-
-        requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageReplyMarkup",
-            json={
-                "chat_id":chat_id,
-                "message_id":message_id,
-                "reply_markup":keyboard
-            }
-        )
-
-        requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-            json={
-                "chat_id":user_id,
-                "text":"📦 Заказ доставлен. Спасибо!"
-            }
-        )
-
-    return {"ok":True}
+    return "OK"
 
 
 # ===============================
