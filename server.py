@@ -4,7 +4,7 @@ import requests
 import math
 import json
 
-app = Flask(**name**)
+app = Flask(_name_)
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_GROUP_ID = os.environ.get("ADMIN_GROUP_ID")
@@ -346,3 +346,4 @@ port = int(os.environ.get("PORT",5000))
 
 app.run(host="0.0.0.0",port=port)
 ```
+
