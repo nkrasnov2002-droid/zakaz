@@ -173,7 +173,7 @@ def checkout():
     data = request.json
 
     user_id = str(data["user_id"])
-    receipt = data.get("receipt")
+    receipt = data.get("receipt_file")
 
     cart = carts.get(user_id,{})
     order_data = orders.get(user_id)
@@ -233,35 +233,37 @@ def send_to_admin(text,user_id,receipt_file,lat,lon):
         ]]
     }
 
-    requests.post(
-        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-        json={
-            "chat_id":ADMIN_GROUP_ID,
-            "text":text,
-            "reply_markup":keyboard
-        }
-    )
+    if receipt_file:
+
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
+            data={
+                "chat_id": ADMIN_GROUP_ID,
+                "photo": receipt_file,
+                "caption": text,
+                "reply_markup": json.dumps(keyboard)
+            }
+        )
+
+    else:
+
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json={
+                "chat_id": ADMIN_GROUP_ID,
+                "text": text,
+                "reply_markup": keyboard
+            }
+        )
 
     requests.post(
         f"https://api.telegram.org/bot{BOT_TOKEN}/sendLocation",
         json={
-            "chat_id":ADMIN_GROUP_ID,
-            "latitude":lat,
-            "longitude":lon
+            "chat_id": ADMIN_GROUP_ID,
+            "latitude": lat,
+            "longitude": lon
         }
     )
-
-    if receipt:
-
-       requests.post(
-        f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
-        json={
-            "chat_id": ADMIN_GROUP_ID,
-            "photo": receipt_file,
-            "caption": f"Чек оплаты\nID заказа: {user_id}"
-        }
-      )
-
 
 # ===============================
 # ОДОБРЕНИЕ ЗАКАЗА
@@ -308,6 +310,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
