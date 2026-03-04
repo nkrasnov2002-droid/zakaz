@@ -324,7 +324,7 @@ def cleanup_orders():
                     "text": "⏳ Сессия заказа истекла.\n\nНажмите /start чтобы начать новый заказ."
                 }
             )
-            def cleaner_loop():
+def cleaner_loop():
     while True:
         cleanup_orders()
         time.sleep(300)  # проверка каждые 5 минут
@@ -339,6 +339,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
