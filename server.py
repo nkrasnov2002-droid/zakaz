@@ -239,82 +239,56 @@ def send_to_admin(text, user_id, receipt, lat, lon):
             }
         )
         
-# ===============================
-# 🔘 ОБРАБОТКА КНОПОК АДМИНА
-# ===============================
-
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
 def telegram_webhook():
+    data = request.json
 
-    update = request.json
+    if "callback_query" in data:
 
-    if "callback_query" in update:
+        query = data["callback_query"]
+        callback_data = query["data"]
+        chat_id = query["message"]["chat"]["id"]
+        message_id = query["message"]["message_id"]
+        user_id = query["from"]["id"]
 
-        callback = update["callback_query"]
-        data = callback["data"]
-        callback_id = callback["id"]
-        message_id = callback["message"]["message_id"]
-        chat_id = callback["message"]["chat"]["id"]
+        # ОДОБРИТЬ
+        if callback_data.startswith("approve_"):
 
-        # подтверждаем Telegram
-        requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
-            json={"callback_query_id": callback_id}
-        )
+            order_user = callback_data.split("_")[1]
 
-        # ===============================
-        # ✅ ОДОБРЕНИЕ
-        # ===============================
-
-        if data.startswith("approve_"):
-
-            user_id = data.split("_")[1]
-
-            # сообщение клиенту
-            requests.post(
-                f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                json={
-                    "chat_id": user_id,
-                    "text": "✅ Ваш заказ подтвержден и готовится!"
-                }
-            )
-
-            # меняем кнопки
             keyboard = {
                 "inline_keyboard": [[
                     {"text": "✅ Заказ одобрен", "callback_data": "done"}
                 ]]
             }
 
+            # меняем кнопки
             requests.post(
                 f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageReplyMarkup",
                 json={
                     "chat_id": chat_id,
                     "message_id": message_id,
-                    "reply_markup": json.dumps(keyboard)
+                    "reply_markup": keyboard
                 }
             )
-
-        # ===============================
-        # ❌ ОТКЛОНЕНИЕ
-        # ===============================
-
-        if data.startswith("reject_"):
-
-            user_id = data.split("_")[1]
 
             # сообщение клиенту
             requests.post(
                 f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
                 json={
-                    "chat_id": user_id,
-                    "text": "❌ К сожалению заказ отклонён."
+                    "chat_id": order_user,
+                    "text": "✅ Ваш заказ подтвержден и готовится!"
                 }
             )
 
+        # ОТКЛОНИТЬ
+        if callback_data.startswith("reject_"):
+
+            order_user = callback_data.split("_")[1]
+
             keyboard = {
                 "inline_keyboard": [[
-                    {"text": "❌ Заказ отклонён", "callback_data": "done"}
+                    {"text": "❌ Заказ отклонен", "callback_data": "done"}
                 ]]
             }
 
@@ -323,11 +297,19 @@ def telegram_webhook():
                 json={
                     "chat_id": chat_id,
                     "message_id": message_id,
-                    "reply_markup": json.dumps(keyboard)
+                    "reply_markup": keyboard
                 }
             )
 
-    return "ok"
+            requests.post(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                json={
+                    "chat_id": order_user,
+                    "text": "❌ К сожалению, заказ не принят."
+                }
+            )
+
+    return {"ok": True}
     
 # ===============================
 # 🚀 ЗАПУСК
@@ -336,6 +318,7 @@ def telegram_webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
