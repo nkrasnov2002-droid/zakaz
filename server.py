@@ -231,7 +231,7 @@ def telegram_webhook():
                 f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
                 json={
                     "chat_id": user_id,
-                    "text": "✅ Ваш заказ подтвержден и готовится!"
+                    "text": "✅ Ваш заказ подтвержден и готовится!",
                     "reply_markup": keyboard
                 }
             )
@@ -293,6 +293,7 @@ def telegram_webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
