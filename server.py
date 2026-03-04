@@ -185,60 +185,6 @@ def checkout():
     return jsonify({"status": "sent"})
     
 # ===============================
-# 📤 ОТПРАВКА АДМИНУ
-# ===============================
-
-def send_to_admin(text, user_id, receipt, lat, lon):
-
-    keyboard = {
-        "inline_keyboard": [[
-            {"text": "✅ Одобрить", "callback_data": f"approve_{user_id}"},
-            {"text": "❌ Отклонить", "callback_data": f"reject_{user_id}"}
-        ]]
-    }
-
-    try:
-        # 📩 Отправляем текст заказа
-        r1 = requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-            json={
-                "chat_id": ADMIN_GROUP_ID,
-                "text": text,
-                "reply_markup": json.dumps(keyboard)
-            }
-        )
-
-        print("sendMessage:", r1.text)
-
-        # 📍 Отправляем локацию
-        r2 = requests.post(
-            f"https://api.telegram.org/bot{BOT_TOKEN}/sendLocation",
-            json={
-                "chat_id": ADMIN_GROUP_ID,
-                "latitude": lat,
-                "longitude": lon
-            }
-        )
-
-        print("sendLocation:", r2.text)
-
-        # 🧾 Отправляем чек если есть
-        if receipt:
-            r3 = requests.post(
-                f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
-                json={
-                    "chat_id": ADMIN_GROUP_ID,
-                    "photo": receipt,
-                    "caption": f"Чек оплаты\nID заказа: {user_id}"
-                }
-            )
-
-            print("sendPhoto:", r3.text)
-
-    except Exception as e:
-        print("ERROR in send_to_admin:", str(e))
-
-# ===============================
 # 🔘 ОБРАБОТКА КНОПОК АДМИНА
 # ===============================
 
@@ -252,21 +198,24 @@ def telegram_webhook():
         callback = update["callback_query"]
         data = callback["data"]
         callback_id = callback["id"]
+        message_id = callback["message"]["message_id"]
+        chat_id = callback["message"]["chat"]["id"]
 
-        # отвечаем Telegram чтобы кнопка не зависала
+        # подтверждаем Telegram
         requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/answerCallbackQuery",
             json={"callback_query_id": callback_id}
         )
 
         # ===============================
-        # ✅ ОДОБРИТЬ ЗАКАЗ
+        # ✅ ОДОБРЕНИЕ
         # ===============================
 
         if data.startswith("approve_"):
 
             user_id = data.split("_")[1]
 
+            # сообщение клиенту
             requests.post(
                 f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
                 json={
@@ -275,19 +224,51 @@ def telegram_webhook():
                 }
             )
 
+            # меняем кнопки
+            keyboard = {
+                "inline_keyboard": [[
+                    {"text": "✅ Заказ одобрен", "callback_data": "done"}
+                ]]
+            }
+
+            requests.post(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageReplyMarkup",
+                json={
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "reply_markup": json.dumps(keyboard)
+                }
+            )
+
         # ===============================
-        # ❌ ОТКЛОНИТЬ ЗАКАЗ
+        # ❌ ОТКЛОНЕНИЕ
         # ===============================
 
         if data.startswith("reject_"):
 
             user_id = data.split("_")[1]
 
+            # сообщение клиенту
             requests.post(
                 f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
                 json={
                     "chat_id": user_id,
                     "text": "❌ К сожалению заказ отклонён."
+                }
+            )
+
+            keyboard = {
+                "inline_keyboard": [[
+                    {"text": "❌ Заказ отклонён", "callback_data": "done"}
+                ]]
+            }
+
+            requests.post(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageReplyMarkup",
+                json={
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "reply_markup": json.dumps(keyboard)
                 }
             )
 
@@ -300,6 +281,7 @@ def telegram_webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
