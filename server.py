@@ -180,9 +180,9 @@ def get_cart(user_id):
     discount = 0
 
     if delivery_type == "pickup":
-    discount = int(total * 0.10)
-    total -= discount
-    text += f"\n🎁 Скидка самовывоза: -{discount} ₽"
+        discount = int(total * 0.10)
+        total -= discount
+        text += f"\n🎁 Скидка самовывоза: -{discount} ₽"
 
     total += delivery_price
 
@@ -426,6 +426,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
