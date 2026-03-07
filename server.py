@@ -296,7 +296,8 @@ def checkout():
         total += subtotal
 
         text += f"{name} x {item['qty']} — {subtotal} ₽\n"
-
+        
+    delivery_price = order_data.get("delivery_price", 0)
     delivery_type = order_data.get("delivery_type","delivery")
 
     if delivery_type == "pickup":
@@ -432,6 +433,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
