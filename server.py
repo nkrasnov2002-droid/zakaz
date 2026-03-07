@@ -44,7 +44,7 @@ def delivery():
     data = request.json
 
     user_id = str(data["user_id"])
-    address = data["address"]
+    address = "Ижевск, " + data["address"]
     phone = data["phone"]
 
     # Геокодирование через Яндекс
@@ -344,6 +344,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
