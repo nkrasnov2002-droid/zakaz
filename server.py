@@ -133,6 +133,17 @@ def add_to_cart():
 
     return jsonify({"status":"added"})
 
+@app.route("/set_pickup", methods=["POST"])
+def set_pickup():
+
+    data = request.json
+    user_id = str(data["user_id"])
+
+    orders.setdefault(user_id, {})
+    orders[user_id]["delivery_type"] = "pickup"
+    orders[user_id]["delivery_price"] = 0
+
+    return jsonify({"status": "ok"})
 
 # ===============================
 # КОРЗИНА
@@ -415,6 +426,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
