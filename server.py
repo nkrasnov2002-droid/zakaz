@@ -18,6 +18,7 @@ SHOP_LON = 53.203414
 
 carts = {}
 orders = {}
+order_counter = 100
 
 # ===============================
 # РАССТОЯНИЕ
@@ -90,6 +91,7 @@ def delivery():
         "lat": lat,
         "lon": lon,
         "phone": phone,
+        "address": data["address"],
         "created_at": time.time()
     }
 
@@ -269,6 +271,10 @@ def clear_cart(user_id):
 @app.route("/checkout", methods=["POST"])
 def checkout():
 
+    global order_counter
+    order_counter += 1
+    order_number = order_counter
+    
     data = request.json
 
     user_id = str(data["user_id"])
@@ -282,7 +288,7 @@ def checkout():
 
     total = 0
 
-    text = "🆕 Новый заказ\n\n"
+    text = f"🍣 Заказ №{order_number}\n\n"
 
     for name,item in cart.items():
 
@@ -291,15 +297,24 @@ def checkout():
 
         text += f"{name} x {item['qty']} — {subtotal} ₽\n"
 
-    delivery_price = order_data["delivery_price"]
+    delivery_type = order_data.get("delivery_type","delivery")
 
-    total += delivery_price
-
+    if delivery_type == "pickup":
+    text += "\n🏃 Самовывоз"
+    else:
     text += f"\n🚚 Доставка: {delivery_price} ₽"
+
     text += f"\n💰 ИТОГО: {total} ₽"
     text += f"\n📞 Телефон: {order_data['phone']}"
-    text += f"\n📍 Зона: {order_data['zone']}"
-
+    text += f"\n📍 Адрес: {order_data.get('address','Самовывоз')}"
+    
+    send_to_admin(
+    text,
+    user_id,
+    receipt,
+    order_data.get("lat"),
+    order_data.get("lon")
+)
     carts.pop(user_id,None)
 
     return jsonify({"status":"sent"})
@@ -309,7 +324,7 @@ def checkout():
 # ОТПРАВКА АДМИНУ
 # ===============================
 
-def send_to_admin(text,user_id,receipt_file,lat,lon):
+def send_to_admin(text,user_id,receipt_file,):
 
     keyboard = {
         "inline_keyboard":[[
@@ -346,15 +361,6 @@ def send_to_admin(text,user_id,receipt_file,lat,lon):
                 "reply_markup": keyboard
             }
         )
-
-    requests.post(
-        f"https://api.telegram.org/bot{BOT_TOKEN}/sendLocation",
-        json={
-            "chat_id": ADMIN_GROUP_ID,
-            "latitude": lat,
-            "longitude": lon
-        }
-    )
 
 # ===============================
 # ОДОБРЕНИЕ ЗАКАЗА
@@ -426,6 +432,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
