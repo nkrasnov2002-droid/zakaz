@@ -154,7 +154,7 @@ for name,item in cart.items():
     subtotal = item["price"] * item["qty"]
     total += subtotal
 
-    text += f"{i}️. {name} x {item['qty']} — {subtotal} ₽\n"
+    text += f"{i}. {name} x {item['qty']} - {subtotal} ₽\n"
 
     index_map[str(i)] = name
     i += 1
@@ -162,15 +162,15 @@ for name,item in cart.items():
     orders.setdefault(user_id, {})
     orders[user_id]["index_map"] = index_map
 
-    delivery_price = orders.get(user_id,{}).get("delivery_price",0)
+    delivery_price = orders.get(user_id, {}).get("delivery_price", 0)
 
     total += delivery_price
 
     text += f"\n🚚 Доставка: {delivery_price} ₽"
 
     return jsonify({
-        "cart": text.strip(),
-        "order_total": total
+    "cart": text.strip(),
+    "order_total": total
     })
     
 @app.route("/select_item", methods=["POST"])
@@ -406,6 +406,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
