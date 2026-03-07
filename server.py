@@ -146,18 +146,18 @@ def get_cart(user_id):
     total = 0
     text = ""
 
-i = 1
-index_map = {}
+    i = 1
+    index_map = {}
 
-for name,item in cart.items():
+    for name,item in cart.items():
 
-    subtotal = item["price"] * item["qty"]
-    total += subtotal
+        subtotal = item["price"] * item["qty"]
+        total += subtotal
 
-    text += f"{i}. {name} x {item['qty']} - {subtotal} ₽\n"
+        text += f"{i}. {name} x {item['qty']} - {subtotal} ₽\n"
 
-    index_map[str(i)] = name
-    i += 1
+        index_map[str(i)] = name
+        i += 1
     
     orders.setdefault(user_id, {})
     orders[user_id]["index_map"] = index_map
@@ -406,6 +406,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
