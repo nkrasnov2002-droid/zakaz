@@ -300,9 +300,9 @@ def checkout():
     delivery_type = order_data.get("delivery_type","delivery")
 
     if delivery_type == "pickup":
-    text += "\n🏃 Самовывоз"
+        text += "\n🏃 Самовывоз"
     else:
-    text += f"\n🚚 Доставка: {delivery_price} ₽"
+        text += f"\n🚚 Доставка: {delivery_price} ₽"
 
     text += f"\n💰 ИТОГО: {total} ₽"
     text += f"\n📞 Телефон: {order_data['phone']}"
@@ -432,6 +432,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
