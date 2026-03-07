@@ -44,33 +44,48 @@ def delivery():
     data = request.json
 
     user_id = str(data["user_id"])
-
-    coords = json.loads(data["lat"])
-    lat = float(coords["latitude"])
-    lon = float(coords["longitude"])
-
+    address = data["address"]
     phone = data["phone"]
+
+    # Геокодирование через Яндекс
+    geo = requests.get(
+        "https://geocode-maps.yandex.ru/1.x/",
+        params={
+            "apikey": "0a901ccb-3f80-42b2-9304-23cd981df90c",
+            "format": "json",
+            "geocode": address
+        }
+    ).json()
+
+    try:
+        pos = geo["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]["Point"]["pos"]
+        lon, lat = map(float, pos.split())
+    except:
+        return jsonify({
+            "delivery_price": 0,
+            "delivery_time": "Не удалось определить адрес"
+        })
 
     distance = calculate_distance(SHOP_LAT, SHOP_LON, lat, lon)
 
     if distance <= 5:
-        zone = "🟢 Зеленая зона"
+        zone = "green"
         price = 0
-        time = "55 минут"
+        delivery_time = "55 минут"
 
     elif distance <= 10:
-        zone = "🔵 Голубая зона"
+        zone = "blue"
         price = 0
-        time = "1.5 часа"
+        delivery_time = "1.5 часа"
 
     else:
-        zone = "🟣 Фиолетовая зона"
+        zone = "purple"
         price = 1000
-        time = "2.5 часа"
+        delivery_time = "2.5 часа"
 
     orders[user_id] = {
         "delivery_price": price,
-        "delivery_time": time,
+        "delivery_time": delivery_time,
         "zone": zone,
         "lat": lat,
         "lon": lon,
@@ -79,9 +94,8 @@ def delivery():
     }
 
     return jsonify({
-        "zone": zone,
         "delivery_price": price,
-        "delivery_time": time
+        "delivery_time": delivery_time
     })
 
 
@@ -330,6 +344,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
