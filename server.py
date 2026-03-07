@@ -146,12 +146,21 @@ def get_cart(user_id):
     total = 0
     text = ""
 
-    for name,item in cart.items():
+i = 1
+index_map = {}
 
-        subtotal = item["price"] * item["qty"]
-        total += subtotal
+for name,item in cart.items():
 
-        text += f"{name} x {item['qty']} — {subtotal} ₽\n"
+    subtotal = item["price"] * item["qty"]
+    total += subtotal
+
+    text += f"{i}️⃣ {name} x {item['qty']} — {subtotal} ₽\n"
+
+    index_map[str(i)] = name
+    i += 1
+    
+    orders.setdefault(user_id, {})
+    orders[user_id]["index_map"] = index_map
 
     delivery_price = orders.get(user_id,{}).get("delivery_price",0)
 
@@ -163,7 +172,60 @@ def get_cart(user_id):
         "cart": text.strip(),
         "order_total": total
     })
+    
+@app.route("/select_item", methods=["POST"])
+def select_item():
 
+    data = request.json
+
+    user_id = str(data["user_id"])
+    index = data["index"]
+
+    index_map = orders.get(user_id, {}).get("index_map", {})
+
+    if index not in index_map:
+        return jsonify({"status":"error"})
+
+    item_name = index_map[index]
+
+    return jsonify({
+        "item_name": item_name
+    })
+
+# ===============================
+# ИЗМЕНЕНИЕ КОЛИЧЕСТВА ТОВАРА
+# ===============================
+
+@app.route("/change_quantity", methods=["POST"])
+def change_quantity():
+
+    data = request.json
+
+    user_id = str(data["user_id"])
+    item_name = data["item"]
+    action = data["action"]
+
+    cart = carts.get(user_id, {})
+
+    if item_name not in cart:
+        return jsonify({"status":"error"})
+
+    if action == "plus":
+        cart[item_name]["qty"] += 1
+
+    elif action == "minus":
+
+        cart[item_name]["qty"] -= 1
+
+        if cart[item_name]["qty"] <= 0:
+            del cart[item_name]
+
+    elif action == "delete":
+
+        del cart[item_name]
+
+    return jsonify({"status":"ok"})
+    
 # ===============================
 # ОЧИСТКА КОРЗИНЫ
 # ===============================
@@ -344,6 +406,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
