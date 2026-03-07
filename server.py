@@ -164,6 +164,15 @@ def get_cart(user_id):
 
     delivery_price = orders.get(user_id, {}).get("delivery_price", 0)
 
+    delivery_type = orders.get(user_id, {}).get("delivery_type", "delivery")
+
+    discount = 0
+
+    if delivery_type == "pickup":
+    discount = int(total * 0.10)
+    total -= discount
+    text += f"\n🎁 Скидка самовывоза: -{discount} ₽"
+
     total += delivery_price
 
     text += f"\n🚚 Доставка: {delivery_price} ₽"
@@ -171,7 +180,7 @@ def get_cart(user_id):
     return jsonify({
     "cart": text.strip(),
     "order_total": total
-    })
+})
     
 @app.route("/select_item", methods=["POST"])
 def select_item():
@@ -406,6 +415,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
