@@ -66,7 +66,7 @@ def delivery():
             "delivery_time": "Не удалось определить адрес"
         })
 
-    distance = calculate_distance(SHOP_LAT, SHOP_LON, lat, lon)
+    distance = calculate_distance(SHOP_LAT, SHOP_LON, lat, lon) * 2
 
     if distance <= 5:
         zone = "green"
@@ -344,6 +344,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
