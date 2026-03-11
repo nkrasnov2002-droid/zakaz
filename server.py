@@ -201,12 +201,15 @@ def select_item():
     data = request.json
 
     user_id = str(data["user_id"])
-    index = data["index"]
+    index = str(data["index"])
+
+    if not index.isdigit():
+        return jsonify({"status":"not_number"})
 
     index_map = orders.get(user_id, {}).get("index_map", {})
 
     if index not in index_map:
-        return jsonify({"status":"error"})
+        return jsonify({"status":"wrong_number"})
 
     item_name = index_map[index]
 
@@ -277,6 +280,9 @@ def checkout():
     
     data = request.json
 
+    if orders.get(user_id,{}).get("finished"):
+        return jsonify({"status":"duplicate"})
+
     user_id = str(data["user_id"])
     receipt = data.get("receipt_file")
 
@@ -308,6 +314,13 @@ def checkout():
     text += f"\n💰 ИТОГО: {total} ₽"
     text += f"\n📞 Телефон: {order_data['phone']}"
     text += f"\n📍 Адрес: {order_data.get('address','Самовывоз')}"
+
+    delivery_time = order_data.get("delivery_time")
+
+    if delivery_time:
+        text += f"\n⏱ Время доставки: {delivery_time}"
+    
+    orders[user_id]["finished"] = True
     
     send_to_admin(
     text,
@@ -323,7 +336,7 @@ def checkout():
 # ОТПРАВКА АДМИНУ
 # ===============================
 
-def send_to_admin(text,user_id,receipt_file,):
+def send_to_admin(text,user_id,receipt_file):
 
     keyboard = {
         "inline_keyboard":[[
@@ -340,7 +353,7 @@ def send_to_admin(text,user_id,receipt_file,):
 
     if receipt_file:
 
-        requests.post(
+        r = requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
             data={
                 "chat_id": ADMIN_GROUP_ID,
@@ -352,7 +365,7 @@ def send_to_admin(text,user_id,receipt_file,):
 
     else:
 
-        requests.post(
+        r = requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
             json={
                 "chat_id": ADMIN_GROUP_ID,
@@ -376,7 +389,16 @@ def approve(user_id):
         }
     )
 
-    return "OK"
+    return """
+<html>
+<body>
+<h2>Заказ одобрен</h2>
+<script>
+window.close();
+</script>
+</body>
+</html>
+"""
 
 
 # ===============================
@@ -394,7 +416,16 @@ def reject(user_id):
         }
     )
 
-    return "OK"
+    return """
+<html>
+<body>
+<h2>Заказ отклонён</h2>
+<script>
+window.close();
+</script>
+</body>
+</html>
+"""
 
 def cleanup_orders():
 
@@ -431,6 +462,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
