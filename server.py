@@ -203,17 +203,24 @@ def select_item():
     user_id = str(data["user_id"])
     index = str(data["index"])
 
-    if not index.isdigit():
-        return jsonify({"status":"not_number"})
-
     index_map = orders.get(user_id, {}).get("index_map", {})
 
+    # если ввели не цифру
+    if not index.isdigit():
+        return jsonify({
+            "status":"not_number"
+        })
+
+    # если такого номера нет
     if index not in index_map:
-        return jsonify({"status":"wrong_number"})
+        return jsonify({
+            "status":"wrong_number"
+        })
 
     item_name = index_map[index]
 
     return jsonify({
+        "status":"ok",
         "item_name": item_name
     })
 
@@ -462,6 +469,7 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT",5000))
 
     app.run(host="0.0.0.0",port=port)
+
 
 
 
