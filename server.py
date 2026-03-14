@@ -230,8 +230,14 @@ def select_item():
     data = request.json
 
     user_id = str(data["user_id"])
-    index = data["index"]
+    index = str(data["index"]).strip()
 
+    if not index.isdigit():
+        return jsonify({
+            "status": "error",
+            "message": "Введите номер позиции цифрой."
+        })
+        
     index_map = orders.get(user_id, {}).get("index_map", {})
 
     if index not in index_map:
