@@ -62,6 +62,7 @@ def delivery():
 try:
     members = geo["response"]["GeoObjectCollection"]["featureMember"]
 
+    # если адрес не найден
     if not members:
         return jsonify({
             "status": "error",
@@ -84,8 +85,9 @@ try:
 except:
     return jsonify({
         "status": "error",
-        "message": "❌ Не удалось определить адрес. Напишите адрес точнее."
+        "message": "❌ Не удалось определить адрес."
     })
+    
     distance = calculate_distance(SHOP_LAT, SHOP_LON, lat, lon) * 2
 
     if distance <= 5:
