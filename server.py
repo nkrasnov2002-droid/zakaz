@@ -382,7 +382,7 @@ def send_to_admin(text, user_id, receipt_file, delivery_time):
 
     if receipt_file:
 
-        requests.post(
+        resp = requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
             data={
                 "chat_id": ADMIN_GROUP_ID,
@@ -390,7 +390,12 @@ def send_to_admin(text, user_id, receipt_file, delivery_time):
                 "caption": text,
                 "reply_markup": json.dumps(keyboard)
             }
-        )
+        ).json()
+
+        message_id = resp["result"]["message_id"]
+
+        orders.setdefault(user_id,{})
+        orders[user_id]["admin_message_id"] = message_id
 
     else:
 
@@ -417,6 +422,24 @@ def approve(user_id):
             "text":"✅ Ваш заказ подтвержден и готовится!"
         }
     )
+ message_id = orders.get(user_id,{}).get("admin_message_id")
+
+if message_id:
+    requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageReplyMarkup",
+        json={
+            "chat_id": ADMIN_GROUP_ID,
+            "message_id": message_id,
+            "reply_markup": {"inline_keyboard":[]}
+        }
+    )
+    requests.post(
+    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+    json={
+        "chat_id": ADMIN_GROUP_ID,
+        "text": f"✅ Заказ {user_id} принят"
+    }
+)
 
     return "OK"
 
@@ -435,6 +458,24 @@ def reject(user_id):
             "text":"❌ К сожалению заказ отклонен."
         }
     )
+    message_id = orders.get(user_id,{}).get("admin_message_id")
+
+if message_id:
+    requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageReplyMarkup",
+        json={
+            "chat_id": ADMIN_GROUP_ID,
+            "message_id": message_id,
+            "reply_markup": {"inline_keyboard":[]}
+        }
+    )
+    requests.post(
+    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+    json={
+        "chat_id": ADMIN_GROUP_ID,
+        "text": f"❌ Заказ {user_id} отклонен"
+    }
+)
 
     return "OK"
 
