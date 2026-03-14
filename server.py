@@ -59,7 +59,7 @@ def delivery():
         }
     ).json()
 
-    try:
+try:
     members = geo["response"]["GeoObjectCollection"]["featureMember"]
 
     # если адрес не найден
