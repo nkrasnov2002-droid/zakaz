@@ -54,18 +54,40 @@ def delivery():
         params={
             "apikey": "0a901ccb-3f80-42b2-9304-23cd981df90c",
             "format": "json",
-            "geocode": address
+            "geocode": address,
+            "kind": "house"
         }
     ).json()
 
     try:
-        pos = geo["response"]["GeoObjectCollection"]["featureMember"][0]["GeoObject"]["Point"]["pos"]
-        lon, lat = map(float, pos.split())
-    except:
+    members = geo["response"]["GeoObjectCollection"]["featureMember"]
+
+    # если адрес не найден
+    if not members:
         return jsonify({
-            "delivery_price": 0,
-            "delivery_time": "Не удалось определить адрес"
+            "status": "error",
+            "message": "❌ Адрес не найден. Проверьте правильность написания."
         })
+
+    geo_object = members[0]["GeoObject"]
+
+    pos = geo_object["Point"]["pos"]
+    lon, lat = map(float, pos.split())
+
+    # проверка что адрес именно в Ижевске
+    full_address = geo_object["metaDataProperty"]["GeocoderMetaData"]["text"]
+
+    if "Ижевск" not in full_address:
+        return jsonify({
+            "status": "error",
+            "message": "❌ Мы доставляем только по Ижевску."
+        })
+
+except:
+    return jsonify({
+        "status": "error",
+        "message": "❌ Не удалось определить адрес. Напишите адрес точнее."
+    })
 
     distance = calculate_distance(SHOP_LAT, SHOP_LON, lat, lon) * 2
 
