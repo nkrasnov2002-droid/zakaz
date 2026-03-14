@@ -418,28 +418,30 @@ def approve(user_id):
     requests.post(
         f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
         json={
-            "chat_id":user_id,
-            "text":"✅ Ваш заказ подтвержден и готовится!"
+            "chat_id": user_id,
+            "text": "✅ Ваш заказ подтвержден и готовится!"
         }
     )
- message_id = orders.get(user_id,{}).get("admin_message_id")
 
-if message_id:
-    requests.post(
-        f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageReplyMarkup",
-        json={
-            "chat_id": ADMIN_GROUP_ID,
-            "message_id": message_id,
-            "reply_markup": {"inline_keyboard":[]}
-        }
-    )
-    requests.post(
-    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-    json={
-        "chat_id": ADMIN_GROUP_ID,
-        "text": f"✅ Заказ {user_id} принят"
-    }
-)
+    message_id = orders.get(user_id, {}).get("admin_message_id")
+
+    if message_id:
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageReplyMarkup",
+            json={
+                "chat_id": ADMIN_GROUP_ID,
+                "message_id": message_id,
+                "reply_markup": {"inline_keyboard": []}
+            }
+        )
+
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json={
+                "chat_id": ADMIN_GROUP_ID,
+                "text": f"✅ Заказ {user_id} принят"
+            }
+        )
 
     return "OK"
 
@@ -454,31 +456,33 @@ def reject(user_id):
     requests.post(
         f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
         json={
-            "chat_id":user_id,
-            "text":"❌ К сожалению заказ отклонен."
+            "chat_id": user_id,
+            "text": "❌ К сожалению заказ отклонен."
         }
     )
-    message_id = orders.get(user_id,{}).get("admin_message_id")
 
-if message_id:
-    requests.post(
-        f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageReplyMarkup",
-        json={
-            "chat_id": ADMIN_GROUP_ID,
-            "message_id": message_id,
-            "reply_markup": {"inline_keyboard":[]}
-        }
-    )
-    requests.post(
-    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-    json={
-        "chat_id": ADMIN_GROUP_ID,
-        "text": f"❌ Заказ {user_id} отклонен"
-    }
-)
+    message_id = orders.get(user_id, {}).get("admin_message_id")
+
+    if message_id:
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageReplyMarkup",
+            json={
+                "chat_id": ADMIN_GROUP_ID,
+                "message_id": message_id,
+                "reply_markup": {"inline_keyboard": []}
+            }
+        )
+
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json={
+                "chat_id": ADMIN_GROUP_ID,
+                "text": f"❌ Заказ {user_id} отклонен"
+            }
+        )
 
     return "OK"
-
+    
 def cleanup_orders():
 
     now = time.time()
