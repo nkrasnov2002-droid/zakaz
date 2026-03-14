@@ -72,7 +72,7 @@ def delivery():
 
         precision = geo_object["metaDataProperty"]["GeocoderMetaData"]["precision"]
 
-        if precision not in ["exact", "number"]:
+        if precision not in ["exact", "number", "near"]:
             return jsonify({
                 "status": "error",
                 "message": "❌ Адрес не найден. Укажите улицу и номер дома."
