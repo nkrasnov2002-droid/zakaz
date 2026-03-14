@@ -124,6 +124,7 @@ def delivery():
     }
 
     return jsonify({
+        "status": "ok",
         "delivery_price": price,
         "delivery_time": delivery_time
     })
