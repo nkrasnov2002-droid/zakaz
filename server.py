@@ -60,21 +60,19 @@ def delivery():
 ).json()
 
     try:
-        members = geo["response"]["GeoObjectCollection"]["featureMember"]
+    members = geo["response"]["GeoObjectCollection"]["featureMember"]
 
-        # если адрес не найден
-        if not members:
+    if not members:
         return jsonify({
             "status": "error",
             "message": "❌ Адрес не найден. Проверьте правильность написания."
         })
 
-        geo_object = members[0]["GeoObject"]
+    geo_object = members[0]["GeoObject"]
 
-        pos = geo_object["Point"]["pos"]
-        lon, lat = map(float, pos.split())
+    pos = geo_object["Point"]["pos"]
+    lon, lat = map(float, pos.split())
 
-    # проверка что адрес именно в Ижевске
     full_address = geo_object["metaDataProperty"]["GeocoderMetaData"]["text"]
 
     if "Ижевск" not in full_address:
@@ -83,12 +81,11 @@ def delivery():
             "message": "❌ Мы доставляем только по Ижевску."
         })
 
-    except:
-        return jsonify({
+except:
+    return jsonify({
         "status": "error",
         "message": "❌ Не удалось определить адрес. Напишите адрес точнее."
     })
-
     distance = calculate_distance(SHOP_LAT, SHOP_LON, lat, lon) * 2
 
     if distance <= 5:
@@ -381,7 +378,7 @@ def send_to_admin(text, user_id, receipt_file, delivery_time):
             f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
             json={
                 "chat_id": ADMIN_GROUP_ID,
-                "text": text + f"\n⏱ Время доставки: {delivery_time}",,
+                "text": text + f"\n⏱ Время доставки: {delivery_time}",
                 "reply_markup": keyboard
             }
         )
