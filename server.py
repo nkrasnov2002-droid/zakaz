@@ -70,6 +70,14 @@ def delivery():
 
         geo_object = members[0]["GeoObject"]
 
+        precision = geo_object["metaDataProperty"]["GeocoderMetaData"]["precision"]
+
+        if precision not in ["exact", "number"]:
+        return jsonify({
+        "status": "error",
+        "message": "❌ Адрес не найден. Укажите улицу и номер дома."
+    })
+
         pos = geo_object["Point"]["pos"]
         lon, lat = map(float, pos.split())
 
