@@ -339,11 +339,14 @@ def checkout():
     delivery_time = order_data.get("delivery_time", "не указано")
 
     if delivery_type == "pickup":
+        delivery_price = 0
         text += "\n🏃 Самовывоз"
     else:
         text += f"\n🚚 Доставка: {delivery_price} ₽"
-
-    text += f"\n💰 ИТОГО: {total} ₽"
+        text += f"\n⏱ Время доставки: {delivery_time}"
+        
+    final_total = total + delivery_price
+    text += f"\n💰 ИТОГО: {final_total} ₽"
     text += f"\n📞 Телефон: {order_data['phone']}"
     text += f"\n📍 Адрес: {order_data.get('address','Самовывоз')}"
     
