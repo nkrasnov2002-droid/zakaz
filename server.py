@@ -246,6 +246,7 @@ def select_item():
     item_name = index_map[index]
 
     return jsonify({
+        "status": "ok",
         "item_name": item_name
     })
 
