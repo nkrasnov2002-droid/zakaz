@@ -52,12 +52,12 @@ def delivery():
     geo = requests.get(
         "https://geocode-maps.yandex.ru/1.x/",
         params={
-            "apikey": "0a901ccb-3f80-42b2-9304-23cd981df90c",
-            "format": "json",
-            "geocode": address,
-            "kind": "house"
-        }
-    ).json()
+        "apikey": "0a901ccb-3f80-42b2-9304-23cd981df90c",
+        "format": "json",
+        "geocode": address,
+        "kind": "house"
+    }
+).json())
 
 try:
     members = geo["response"]["GeoObjectCollection"]["featureMember"]
