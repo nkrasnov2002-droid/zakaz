@@ -45,19 +45,21 @@ def delivery():
     data = request.json
 
     user_id = str(data["user_id"])
-    address = "Ижевск, " + data["address"]
+    raw_address = data["address"].strip()
+    normalized_address = raw_address if "," in raw_address else f"Ижевск, {raw_address}"
+    geocode_query = f"Удмуртская Республика, {normalized_address}"
     phone = data["phone"]
 
-    # Геокодирование через Яндекс
+    # Scope geocoding to Udmurtia to avoid matching same-named addresses in other regions.
     geo = requests.get(
         "https://geocode-maps.yandex.ru/1.x/",
         params={
-        "apikey": "0a901ccb-3f80-42b2-9304-23cd981df90c",
-        "format": "json",
-        "geocode": address,
-        "kind": "house"
-    }
-).json()
+            "apikey": "0a901ccb-3f80-42b2-9304-23cd981df90c",
+            "format": "json",
+            "geocode": geocode_query,
+            "kind": "house"
+        }
+    ).json()
 
     try:
         members = geo["response"]["GeoObjectCollection"]["featureMember"]
@@ -65,7 +67,7 @@ def delivery():
         if not members:
             return jsonify({
                 "status": "error",
-                "message": "❌ Адрес не найден."
+                "message": "? ????? ?? ??????."
             })
 
         geo_object = members[0]["GeoObject"]
@@ -75,42 +77,36 @@ def delivery():
         if precision not in ["exact", "number", "near"]:
             return jsonify({
                 "status": "error",
-                "message": "❌ Адрес не найден. Укажите улицу и номер дома."
-    })
+                "message": "? ????? ?? ??????. ??????? ????? ? ????? ????."
+            })
 
         pos = geo_object["Point"]["pos"]
         lon, lat = map(float, pos.split())
 
         full_address = geo_object["metaDataProperty"]["GeocoderMetaData"]["text"]
 
-        if "Ижевск" not in full_address:
-            return jsonify({
-                "status": "error",
-                "message": "❌ Мы доставляем только по Ижевску."
-            })
-
     except:
         return jsonify({
             "status": "error",
-            "message": "❌ Не удалось определить адрес."
+            "message": "? ?? ??????? ?????????? ?????."
         })
-    
+
     distance = calculate_distance(SHOP_LAT, SHOP_LON, lat, lon) * 2
 
     if distance <= 5:
         zone = "green"
         price = 0
-        delivery_time = "55 минут"
+        delivery_time = "55 ?????"
 
     elif distance <= 10:
         zone = "blue"
         price = 0
-        delivery_time = "1.5 часа"
+        delivery_time = "1.5 ????"
 
     else:
         zone = "purple"
         price = 1000
-        delivery_time = "2.5 часа"
+        delivery_time = "2.5 ????"
 
     orders[user_id] = {
         "delivery_price": price,
@@ -119,7 +115,8 @@ def delivery():
         "lat": lat,
         "lon": lon,
         "phone": phone,
-        "address": data["address"],
+        "address": raw_address,
+        "full_address": full_address,
         "created_at": time.time()
     }
 
