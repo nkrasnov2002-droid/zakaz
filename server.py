@@ -5,11 +5,18 @@ import math
 import json
 import time
 import threading
+import uuid
 
 app = Flask(__name__)
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_GROUP_ID = os.environ.get("ADMIN_GROUP_ID")
+YOOKASSA_SHOP_ID = os.environ.get("YOOKASSA_SHOP_ID")
+YOOKASSA_SECRET_KEY = os.environ.get("YOOKASSA_SECRET_KEY")
+YOOKASSA_RETURN_URL = os.environ.get(
+    "YOOKASSA_RETURN_URL",
+    "https://zakaz-production-5164.up.railway.app/payment-success"
+)
 
 SERVER_URL = "https://zakaz-production-5164.up.railway.app"
 
@@ -33,6 +40,95 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
 
     return R * c
+
+
+def build_order_summary(user_id):
+    cart = carts.get(user_id, {})
+    order_data = orders.get(user_id, {})
+
+    items = []
+    total = 0
+
+    for name, item in cart.items():
+        subtotal = item["price"] * item["qty"]
+        total += subtotal
+        items.append({
+            "name": name,
+            "qty": item["qty"],
+            "subtotal": subtotal
+        })
+
+    delivery_price = order_data.get("delivery_price", 0)
+    delivery_type = order_data.get("delivery_type", "delivery")
+    discount = 0
+
+    if delivery_type == "pickup":
+        discount = int(total * 0.10)
+
+    final_total = total - discount + delivery_price
+
+    return {
+        "items": items,
+        "items_total": total,
+        "discount": discount,
+        "delivery_price": delivery_price,
+        "delivery_type": delivery_type,
+        "final_total": final_total
+    }
+
+
+def build_admin_order_text(user_id, order_number=None):
+    order_data = orders.get(user_id)
+
+    if not order_data:
+        return None
+
+    if order_number is None:
+        order_number = order_data.get("order_number")
+
+    if order_number is None:
+        global order_counter
+        order_counter += 1
+        order_number = order_counter
+        orders.setdefault(user_id, {})
+        orders[user_id]["order_number"] = order_number
+
+    summary = build_order_summary(user_id)
+    delivery_time = order_data.get("delivery_time", "не указано")
+
+    text = f"Заказ №{order_number}\n\n"
+
+    for item in summary["items"]:
+        text += f"{item['name']} x {item['qty']} — {item['subtotal']} ₽\n"
+
+    if summary["delivery_type"] == "pickup":
+        text += "\nСамовывоз"
+        if summary["discount"] > 0:
+            text += f"\nСкидка самовывоза: -{summary['discount']} ₽"
+    else:
+        text += f"\nДоставка: {summary['delivery_price']} ₽"
+        text += f"\nВремя доставки: {delivery_time}"
+
+    text += f"\nИТОГО: {summary['final_total']} ₽"
+    text += f"\nТелефон: {order_data.get('phone', 'не указан')}"
+    text += f"\nАдрес: {order_data.get('address', 'Самовывоз')}"
+
+    payment_status = order_data.get("payment_status")
+    if payment_status:
+        text += f"\nОплата: {payment_status}"
+
+    return text
+
+
+def send_user_message(chat_id, text):
+    requests.post(
+        f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+        json={
+            "chat_id": chat_id,
+            "text": text
+        },
+        timeout=20
+    )
 
 
 # ===============================
@@ -220,6 +316,56 @@ def get_cart(user_id):
     "cart": text.strip(),
     "order_total": total
 })
+
+
+@app.route("/payment-success", methods=["GET"])
+def payment_success():
+    return """
+    <!doctype html>
+    <html lang="ru">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Оплата</title>
+        <style>
+            body {
+                margin: 0;
+                font-family: Arial, sans-serif;
+                background: #f6f7f9;
+                color: #1f2937;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+            }
+            .card {
+                max-width: 460px;
+                margin: 24px;
+                padding: 32px 28px;
+                background: #ffffff;
+                border-radius: 20px;
+                box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+                text-align: center;
+            }
+            h1 {
+                margin: 0 0 12px;
+                font-size: 28px;
+            }
+            p {
+                margin: 0;
+                line-height: 1.5;
+                font-size: 16px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h1>Оплата прошла</h1>
+            <p>Если деньги списались успешно, заказ будет обработан автоматически.</p>
+        </div>
+    </body>
+    </html>
+    """
     
 @app.route("/select_item", methods=["POST"])
 def select_item():
@@ -300,6 +446,96 @@ def clear_cart(user_id):
 # ===============================
 # ОФОРМЛЕНИЕ ЗАКАЗА
 # ===============================
+
+@app.route("/create_payment", methods=["POST"])
+def create_payment():
+
+    if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
+        return jsonify({
+            "status": "error",
+            "message": "YooKassa is not configured."
+        }), 500
+
+    data = request.json or {}
+    user_id = str(data.get("user_id", "")).strip()
+    receipt = data.get("receipt_file")
+
+    if not user_id:
+        return jsonify({
+            "status": "error",
+            "message": "user_id is required."
+        }), 400
+
+    cart = carts.get(user_id, {})
+    order_data = orders.get(user_id)
+
+    if not cart:
+        return jsonify({
+            "status": "error",
+            "message": "Cart is empty."
+        }), 400
+
+    if not order_data:
+        return jsonify({
+            "status": "error",
+            "message": "Order data is missing."
+        }), 400
+
+    summary = build_order_summary(user_id)
+    amount_value = f"{summary['final_total']:.2f}"
+
+    payload = {
+        "amount": {
+            "value": amount_value,
+            "currency": "RUB"
+        },
+        "capture": True,
+        "confirmation": {
+            "type": "redirect",
+            "return_url": YOOKASSA_RETURN_URL
+        },
+        "description": f"Заказ Telegram user {user_id}",
+        "metadata": {
+            "user_id": user_id
+        }
+    }
+
+    response = requests.post(
+        "https://api.yookassa.ru/v3/payments",
+        auth=(YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY),
+        headers={
+            "Idempotence-Key": str(uuid.uuid4()),
+            "Content-Type": "application/json"
+        },
+        json=payload,
+        timeout=20
+    )
+
+    if not response.ok:
+        return jsonify({
+            "status": "error",
+            "message": "Failed to create payment.",
+            "details": response.text
+        }), 500
+
+    payment = response.json()
+
+    orders.setdefault(user_id, {})
+    orders[user_id]["payment_id"] = payment["id"]
+    orders[user_id]["payment_status"] = payment["status"]
+    orders[user_id]["payment_url"] = payment["confirmation"]["confirmation_url"]
+    orders[user_id]["payment_amount"] = summary["final_total"]
+    if receipt:
+        orders[user_id]["receipt_file"] = receipt
+
+    return jsonify({
+        "status": "ok",
+        "payment_id": payment["id"],
+        "payment_status": payment["status"],
+        "confirmation_url": payment["confirmation"]["confirmation_url"],
+        "amount": summary["final_total"]
+    })
+
 
 @app.route("/checkout", methods=["POST"])
 def checkout():
@@ -477,6 +713,138 @@ def reject(user_id):
                 "text": f"❌ Заказ {user_id} отклонен"
             }
         )
+
+    return "OK"
+
+
+def send_to_admin(text, user_id, receipt_file, delivery_time):
+
+    keyboard = {
+        "inline_keyboard":[[
+            {
+                "text":"Заказ готов",
+                "url":f"{SERVER_URL}/ready/{user_id}"
+            }
+        ]]
+    }
+
+    if receipt_file:
+
+        resp = requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto",
+            data={
+                "chat_id": ADMIN_GROUP_ID,
+                "photo": receipt_file,
+                "caption": text,
+                "reply_markup": json.dumps(keyboard)
+            },
+            timeout=20
+        ).json()
+
+        message_id = resp.get("result", {}).get("message_id")
+
+        if message_id:
+            orders.setdefault(user_id, {})
+            orders[user_id]["admin_message_id"] = message_id
+
+    else:
+
+        resp = requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json={
+                "chat_id": ADMIN_GROUP_ID,
+                "text": text + f"\nВремя доставки: {delivery_time}",
+                "reply_markup": keyboard
+            },
+            timeout=20
+        ).json()
+
+        message_id = resp.get("result", {}).get("message_id")
+
+        if message_id:
+            orders.setdefault(user_id, {})
+            orders[user_id]["admin_message_id"] = message_id
+
+
+def finalize_paid_order(user_id):
+    order_data = orders.get(user_id)
+
+    if not order_data:
+        return False
+
+    if order_data.get("sent_to_admin"):
+        return True
+
+    text = build_admin_order_text(user_id)
+    if not text:
+        return False
+
+    delivery_time = order_data.get("delivery_time", "не указано")
+    receipt = order_data.get("receipt_file")
+
+    send_to_admin(text, user_id, receipt, delivery_time)
+
+    orders.setdefault(user_id, {})
+    orders[user_id]["sent_to_admin"] = True
+
+    send_user_message(user_id, "Оплата получена. Заказ принят и передан в работу.")
+
+    return True
+
+
+@app.route("/yookassa_webhook", methods=["POST"])
+def yookassa_webhook():
+
+    event = request.json or {}
+    event_type = event.get("event")
+    payment_object = event.get("object", {})
+
+    payment_id = payment_object.get("id")
+    metadata = payment_object.get("metadata", {})
+    user_id = str(metadata.get("user_id", "")).strip()
+
+    if not payment_id or not user_id:
+        return jsonify({"status": "ignored"}), 200
+
+    orders.setdefault(user_id, {})
+    orders[user_id]["payment_id"] = payment_id
+    orders[user_id]["payment_status"] = payment_object.get("status")
+
+    if event_type == "payment.succeeded":
+        finalize_paid_order(user_id)
+
+    return jsonify({"status": "ok"})
+
+
+@app.route("/ready/<user_id>")
+def mark_order_ready(user_id):
+
+    user_id = str(user_id)
+    order_data = orders.get(user_id)
+
+    if not order_data:
+        return "Order not found", 404
+
+    message_id = order_data.get("admin_message_id")
+    order_number = order_data.get("order_number", user_id)
+    updated_text = build_admin_order_text(user_id, order_number=order_number)
+
+    if updated_text and "Статус: готов" not in updated_text:
+        updated_text += "\nСтатус: готов"
+
+    if message_id and updated_text:
+        requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText",
+            json={
+                "chat_id": ADMIN_GROUP_ID,
+                "message_id": message_id,
+                "text": updated_text
+            },
+            timeout=20
+        )
+
+    send_user_message(user_id, "Ваш заказ готов.")
+    orders[user_id]["order_status"] = "ready"
 
     return "OK"
     
