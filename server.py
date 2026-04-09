@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect
 import os
 import requests
 import math
@@ -129,6 +129,86 @@ def send_user_message(chat_id, text):
         },
         timeout=20
     )
+
+
+def create_yookassa_payment_for_user(user_id, receipt_file=None):
+    if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
+        return None, ({
+            "status": "error",
+            "message": "YooKassa is not configured."
+        }, 500)
+
+    user_id = str(user_id).strip()
+    cart = carts.get(user_id, {})
+    order_data = orders.get(user_id)
+
+    if not user_id:
+        return None, ({
+            "status": "error",
+            "message": "user_id is required."
+        }, 400)
+
+    if not cart:
+        return None, ({
+            "status": "error",
+            "message": "Cart is empty."
+        }, 400)
+
+    if not order_data:
+        return None, ({
+            "status": "error",
+            "message": "Order data is missing."
+        }, 400)
+
+    summary = build_order_summary(user_id)
+    amount_value = f"{summary['final_total']:.2f}"
+
+    payload = {
+        "amount": {
+            "value": amount_value,
+            "currency": "RUB"
+        },
+        "capture": True,
+        "confirmation": {
+            "type": "redirect",
+            "return_url": YOOKASSA_RETURN_URL
+        },
+        "description": f"Заказ Telegram user {user_id}",
+        "metadata": {
+            "user_id": user_id
+        }
+    }
+
+    response = requests.post(
+        "https://api.yookassa.ru/v3/payments",
+        auth=(YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY),
+        headers={
+            "Idempotence-Key": str(uuid.uuid4()),
+            "Content-Type": "application/json"
+        },
+        json=payload,
+        timeout=20
+    )
+
+    if not response.ok:
+        return None, ({
+            "status": "error",
+            "message": "Failed to create payment.",
+            "details": response.text
+        }, 500)
+
+    payment = response.json()
+
+    orders.setdefault(user_id, {})
+    orders[user_id]["payment_id"] = payment["id"]
+    orders[user_id]["payment_status"] = payment["status"]
+    orders[user_id]["payment_url"] = payment["confirmation"]["confirmation_url"]
+    orders[user_id]["payment_amount"] = summary["final_total"]
+
+    if receipt_file:
+        orders[user_id]["receipt_file"] = receipt_file
+
+    return payment, None
 
 
 # ===============================
@@ -535,6 +615,80 @@ def create_payment():
         "confirmation_url": payment["confirmation"]["confirmation_url"],
         "amount": summary["final_total"]
     })
+
+
+@app.route("/pay_link/<user_id>", methods=["GET"])
+def pay_link(user_id):
+
+    user_id = str(user_id).strip()
+
+    if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
+        return jsonify({
+            "status": "error",
+            "message": "YooKassa is not configured."
+        }), 500
+
+    cart = carts.get(user_id, {})
+    order_data = orders.get(user_id)
+
+    if not cart:
+        return jsonify({
+            "status": "error",
+            "message": "Cart is empty."
+        }), 400
+
+    if not order_data:
+        return jsonify({
+            "status": "error",
+            "message": "Order data is missing."
+        }), 400
+
+    summary = build_order_summary(user_id)
+    amount_value = f"{summary['final_total']:.2f}"
+
+    payload = {
+        "amount": {
+            "value": amount_value,
+            "currency": "RUB"
+        },
+        "capture": True,
+        "confirmation": {
+            "type": "redirect",
+            "return_url": YOOKASSA_RETURN_URL
+        },
+        "description": f"Заказ Telegram user {user_id}",
+        "metadata": {
+            "user_id": user_id
+        }
+    }
+
+    response = requests.post(
+        "https://api.yookassa.ru/v3/payments",
+        auth=(YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY),
+        headers={
+            "Idempotence-Key": str(uuid.uuid4()),
+            "Content-Type": "application/json"
+        },
+        json=payload,
+        timeout=20
+    )
+
+    if not response.ok:
+        return jsonify({
+            "status": "error",
+            "message": "Failed to create payment.",
+            "details": response.text
+        }), 500
+
+    payment = response.json()
+
+    orders.setdefault(user_id, {})
+    orders[user_id]["payment_id"] = payment["id"]
+    orders[user_id]["payment_status"] = payment["status"]
+    orders[user_id]["payment_url"] = payment["confirmation"]["confirmation_url"]
+    orders[user_id]["payment_amount"] = summary["final_total"]
+
+    return redirect(payment["confirmation"]["confirmation_url"], code=302)
 
 
 @app.route("/checkout", methods=["POST"])
