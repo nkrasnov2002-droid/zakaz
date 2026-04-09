@@ -160,6 +160,12 @@ def create_yookassa_payment_for_user(user_id, receipt_file=None):
             "message": "Order data is missing."
         }, 400)
 
+    orders.setdefault(user_id, {})
+    orders[user_id]["created_at"] = time.time()
+
+    if order_data.get("delivery_type") != "pickup":
+        orders[user_id]["delivery_type"] = "delivery"
+
     summary = build_order_summary(user_id)
     amount_value = f"{summary['final_total']:.2f}"
 
@@ -272,17 +278,17 @@ def delivery():
     if distance <= 5:
         zone = "green"
         price = 0
-        delivery_time = "55 ?????"
+        delivery_time = "55 минут"
 
     elif distance <= 10:
         zone = "blue"
         price = 0
-        delivery_time = "1.5 ????"
+        delivery_time = "1.5 часа"
 
     else:
         zone = "purple"
         price = 1000
-        delivery_time = "2.5 ????"
+        delivery_time = "2.5 часа"
 
     orders[user_id] = {
         "delivery_price": price,
@@ -920,6 +926,57 @@ def send_to_admin(text, user_id, receipt_file, delivery_time):
             orders[user_id]["admin_message_id"] = message_id
 
 
+def build_admin_order_text(user_id, order_number=None):
+    order_data = orders.get(user_id)
+
+    if not order_data:
+        return None
+
+    if order_number is None:
+        order_number = order_data.get("order_number")
+
+    if order_number is None:
+        global order_counter
+        order_counter += 1
+        order_number = order_counter
+        orders.setdefault(user_id, {})
+        orders[user_id]["order_number"] = order_number
+
+    summary = build_order_summary(user_id)
+    delivery_time = order_data.get("delivery_time", "не указано")
+    phone = order_data.get("phone") or "не указан"
+
+    if summary["delivery_type"] == "pickup":
+        address = "Самовывоз"
+    else:
+        address = order_data.get("address") or order_data.get("full_address") or "не указан"
+
+    text = f"🍣 Заказ №{order_number}\n\n"
+
+    for item in summary["items"]:
+        text += f"{item['name']} x {item['qty']} — {item['subtotal']} ₽\n"
+
+    if summary["delivery_type"] == "pickup":
+        text += "\n🏃 Самовывоз"
+        if summary["discount"] > 0:
+            text += f"\n🎁 Скидка самовывоза: -{summary['discount']} ₽"
+    else:
+        text += f"\n🚚 Доставка: {summary['delivery_price']} ₽"
+        text += f"\n⏱ Время доставки: {delivery_time}"
+
+    text += f"\n💰 ИТОГО: {summary['final_total']} ₽"
+    text += f"\n📞 Телефон: {phone}"
+    text += f"\n📍 Адрес: {address}"
+
+    if order_data.get("payment_status") == "succeeded":
+        text += "\n💳 Оплата: оплачено"
+
+    if order_data.get("order_status") == "ready":
+        text += "\n✅ Статус: готов"
+
+    return text
+
+
 def finalize_paid_order(user_id):
     order_data = orders.get(user_id)
 
@@ -997,8 +1054,8 @@ def mark_order_ready(user_id):
             timeout=20
         )
 
-    send_user_message(user_id, "Ваш заказ готов.")
     orders[user_id]["order_status"] = "ready"
+    send_user_message(user_id, "Ваш заказ готов и передан в доставку.")
 
     return "OK"
     
