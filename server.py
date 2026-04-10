@@ -6,6 +6,8 @@ import json
 import time
 import threading
 import uuid
+from datetime import datetime, time as dt_time
+from zoneinfo import ZoneInfo
 
 app = Flask(__name__)
 
@@ -22,6 +24,9 @@ SERVER_URL = "https://zakaz-production-5164.up.railway.app"
 
 SHOP_LAT = 56.844628
 SHOP_LON = 53.203414
+IZHEVSK_TZ = ZoneInfo("Europe/Samara")
+ORDER_START_TIME = dt_time(10, 30)
+ORDER_END_TIME = dt_time(21, 0)
 
 carts = {}
 orders = {}
@@ -40,6 +45,39 @@ def calculate_distance(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
 
     return R * c
+
+
+def get_order_hours_status():
+    now = datetime.now(IZHEVSK_TZ)
+    current_time = now.time()
+    is_open = ORDER_START_TIME <= current_time <= ORDER_END_TIME
+    return {
+        "is_open": is_open,
+        "now": now,
+        "message": "Заказы принимаются с 10:30 до 21:00 по Ижевску."
+    }
+
+
+def order_hours_error():
+    status = get_order_hours_status()
+    return jsonify({
+        "status": "error",
+        "message": status["message"],
+        "working_hours": "10:30-21:00",
+        "timezone": "Ижевск"
+    }), 403
+
+
+@app.route("/working-hours", methods=["GET"])
+def working_hours():
+    status = get_order_hours_status()
+    return jsonify({
+        "status": "open" if status["is_open"] else "closed",
+        "is_open": status["is_open"],
+        "message": status["message"],
+        "working_hours": "10:30-21:00",
+        "timezone": "Ижевск"
+    })
 
 
 def build_order_summary(user_id):
@@ -132,6 +170,13 @@ def send_user_message(chat_id, text):
 
 
 def create_yookassa_payment_for_user(user_id, receipt_file=None):
+    hours_status = get_order_hours_status()
+    if not hours_status["is_open"]:
+        return None, ({
+            "status": "error",
+            "message": hours_status["message"]
+        }, 403)
+
     if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET_KEY:
         return None, ({
             "status": "error",
@@ -699,6 +744,9 @@ def pay_link(user_id):
 
 @app.route("/checkout", methods=["POST"])
 def checkout():
+    hours_status = get_order_hours_status()
+    if not hours_status["is_open"]:
+        return order_hours_error()
 
     global order_counter
     order_counter += 1
